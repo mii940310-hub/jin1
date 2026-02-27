@@ -26,7 +26,7 @@ export default function ProductsPage() {
 
     if (loading) return <div style={{ paddingTop: '150px', textAlign: 'center' }}>상품을 불러고 있습니다...</div>;
     if (error) return (
-        <div style={{ paddingTop: '150px', className: 'container' }}>
+        <div className="container" style={{ paddingTop: '150px' }}>
             <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '20px', borderRadius: '8px' }}>
                 ⚠️ 데이터 로드 실패: {error}
                 <br />
