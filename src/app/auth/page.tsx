@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [msg, setMsg] = useState("세션 확인 중...");
@@ -22,7 +22,6 @@ export default function AuthCallbackPage() {
             }
 
             if (!code) {
-                // 코드가 없어도 이미 로그인 된 세션이 있는지 확인 (implicit flow 대응)
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
                     router.replace("/update-password");
@@ -34,12 +33,10 @@ export default function AuthCallbackPage() {
             }
 
             try {
-                // 브라우저에서 exchange 해야 세션이 잡힙니다.
                 const { error } = await supabase.auth.exchangeCodeForSession(code);
 
                 if (error) {
                     if (error.message.includes("both 'code' and 'code_verifier'")) {
-                        // 가끔 발생하는 PKCE 충돌 시 잠시 대기 후 재시도 또는 세션 확인
                         const { data: { session } } = await supabase.auth.getSession();
                         if (session) {
                             router.replace("/update-password");
@@ -50,7 +47,6 @@ export default function AuthCallbackPage() {
                     return;
                 }
 
-                // 세션이 잡힌 뒤 비밀번호 변경 페이지로 이동
                 router.replace("/update-password");
             } catch (err: any) {
                 setMsg(`오류 발생: ${err.message}`);
@@ -74,5 +70,17 @@ export default function AuthCallbackPage() {
                 <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{msg}</div>
             </div>
         </div>
+    );
+}
+
+export default function AuthCallbackPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ display: "grid", placeItems: "center", height: "100vh", background: 'var(--background)' }}>
+                <div>인증 정보를 불러오는 중입니다...</div>
+            </div>
+        }>
+            <AuthCallbackContent />
+        </Suspense>
     );
 }
