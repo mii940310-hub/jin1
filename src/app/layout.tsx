@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import "./globals.css";
 import { getMissingEnvs, validateEnvs } from "@/lib/env-check";
+import ChatBot from "@/components/ChatBot";
 
 // Run validation in dev mode console
 if (process.env.NODE_ENV === 'development') {
@@ -25,13 +27,15 @@ export default function RootLayout({
       <body>
         <EnvWarningBanner missingEnvs={missingEnvs} />
         <nav className="navbar" style={{ top: missingEnvs.length > 0 ? '40px' : '0' }}>
-          <div className="logo" style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>
-            Highland Fresh
+          <div className="logo" style={{ display: 'flex', alignItems: 'center' }}>
+            <Image src="/logo.png" alt="슝팜 로고" width={120} height={120} style={{ objectFit: 'contain' }} />
           </div>
           <div className="nav-links" style={{ display: 'flex', gap: '32px', fontWeight: 500 }}>
             <a href="/">상품 둘러보기</a>
             <a href="/cart">장바구니</a>
+            <a href="/my-page/orders">마이페이지</a>
             <a href="/farmer">농가 홈</a>
+            <a href="/admin" style={{ color: '#be185d' }}>총괄 관리자</a>
             <a href="/login">로그인</a>
           </div>
         </nav>
@@ -44,6 +48,7 @@ export default function RootLayout({
             </p>
           </div>
         </footer>
+        <ChatBot />
       </body>
     </html>
   );

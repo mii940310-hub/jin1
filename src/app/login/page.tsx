@@ -108,8 +108,47 @@ export default function LoginPage() {
                     </form>
 
                     <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.9rem', color: 'var(--muted)' }}>
-                        Google 로그인은 Supabase 설정이 필요합니다.
+                        또는 소셜 계정으로 로그인
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            setLoading(true);
+                            const { error } = await supabase.auth.signInWithOAuth({
+                                provider: 'kakao',
+                                options: {
+                                    redirectTo: `${window.location.origin}/`,
+                                    scopes: 'profile_nickname',
+                                },
+                            });
+                            if (error) {
+                                setMsg({ type: 'error', text: error.message });
+                                setLoading(false);
+                            }
+                        }}
+                        disabled={loading}
+                        style={{
+                            width: '100%',
+                            padding: '14px',
+                            marginTop: '16px',
+                            backgroundColor: '#FEE500',
+                            color: '#000000 85%',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            cursor: loading ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#000000">
+                            <path d="M12 3c-5.52 0-10 3.58-10 8 0 2.85 1.83 5.34 4.57 6.74-.29 1.09-1.07 4.12-1.11 4.3-.06.27.14.3.29.2.14-.08 3.51-2.43 4.88-3.38.45.06.91.09 1.38.09 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
+                        </svg>
+                        카카오 로그인
+                    </button>
                 </div>
             </div>
         </div>

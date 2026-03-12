@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 export default function ProductDetailPage() {
     const { id } = useParams();
+    const router = useRouter();
     const [product, setProduct] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedWeight, setSelectedWeight] = useState(3);
+    const [addingToCart, setAddingToCart] = useState(false);
 
     useEffect(() => {
         async function fetchProduct() {
@@ -107,7 +109,7 @@ export default function ProductDetailPage() {
                                 ].map(({ w, label }) => {
                                     const marketPricePerKg = 9480;
                                     const marketPrice = marketPricePerKg * w;
-                                    const discountRate = w === 3 ? 0.25 : w === 5 ? 0.26 : 0.28;
+                                    const discountRate = 0.30;
                                     const optionPrice = Math.round(marketPrice * (1 - discountRate) / 100) * 100;
                                     const pricePer100g = Math.round(optionPrice / (w * 10));
                                     const isLowest = w === 10;
@@ -166,7 +168,7 @@ export default function ProductDetailPage() {
                         {(() => {
                             const marketPricePerKg = 9480;
                             const marketPrice = marketPricePerKg * selectedWeight;
-                            const discountRate = selectedWeight === 3 ? 0.25 : selectedWeight === 5 ? 0.26 : 0.28;
+                            const discountRate = 0.30;
                             const finalPrice = Math.round(marketPrice * (1 - discountRate) / 100) * 100;
                             const ratio = finalPrice / product.price_total;
 
@@ -201,18 +203,73 @@ export default function ProductDetailPage() {
                         })()}
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '40px' }}>
-                            <div style={{ padding: '16px', background: 'var(--accent)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                            <div style={{ padding: '16px', background: 'var(--accent)', borderRadius: 'var(--radius)', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '4px' }}>수확일</div>
                                 <div style={{ fontWeight: 700 }}>{product.harvest_date || '상시'}</div>
                             </div>
-                            <div style={{ padding: '16px', background: 'var(--accent)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '4px' }}>배송방식</div>
-                                <div style={{ fontWeight: 700 }}>새벽 산지직송</div>
+                            <div style={{ padding: '16px', background: 'var(--accent)', borderRadius: 'var(--radius)', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '4px' }}>배송 안내</div>
+                                <div style={{ fontWeight: 700, marginBottom: '4px' }}>새벽 산지직송</div>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '6px' }}>기본 택배비 3,000원</div>
+                                <div style={{ fontSize: '0.75rem', color: '#e11d48', fontWeight: 600 }}>
+                                    {['과일', '채소'].includes(product.category) 
+                                        ? '⚠️ 신선식품 특성상 도서산간 지역 배송 불가' 
+                                        : 'ℹ️ 도서산간 지역 배송비 3,000원 추가'}
+                                </div>
                             </div>
                         </div>
 
-                        <button className="btn-primary" style={{ width: '100%', padding: '18px', fontSize: '1.1rem' }}>
-                            장바구니 담기
+                        <button
+                            className="btn-primary"
+                            style={{ width: '100%', padding: '18px', fontSize: '1.1rem', opacity: addingToCart ? 0.7 : 1, cursor: addingToCart ? 'not-allowed' : 'pointer' }}
+                            disabled={addingToCart}
+                            onClick={async () => {
+                                setAddingToCart(true);
+                                try {
+                                    const { data: { user } } = await supabase.auth.getUser();
+
+                                    if (!user) {
+                                        alert('로그인이 필요합니다.');
+                                        router.push('/login');
+                                        return;
+                                    }
+
+                                    // 회원님의 장바구니 확인
+                                    let { data: cart } = await supabase.from('carts').select('*').eq('user_id', user.id).maybeSingle();
+
+                                    if (!cart) {
+                                        const { data: newCart, error: insertError } = await supabase.from('carts').insert({ user_id: user.id }).select().single();
+                                        if (insertError) throw insertError;
+                                        cart = newCart;
+                                    }
+
+                                    // 장바구니에 상품 추가
+                                    const { error: itemError } = await supabase.from('cart_items').insert({
+                                        cart_id: cart.id,
+                                        product_id: product.id,
+                                        quantity: 1
+                                    });
+
+                                    if (itemError) {
+                                        if (itemError.message.includes('duplicate')) {
+                                            alert('이미 장바구니에 있는 상품입니다.');
+                                        } else {
+                                            throw itemError;
+                                        }
+                                    } else {
+                                        if (confirm('장바구니에 성공적으로 담겼습니다. 장바구니로 이동하시겠습니까?')) {
+                                            router.push('/cart');
+                                        }
+                                    }
+                                } catch (error: any) {
+                                    console.error('장바구니 담기 오류:', error);
+                                    alert(`장바구니 담기에 실패했습니다: ${error.message}`);
+                                } finally {
+                                    setAddingToCart(false);
+                                }
+                            }}
+                        >
+                            {addingToCart ? '담는 중...' : '장바구니 담기'}
                         </button>
                     </div>
                 </div>
