@@ -76,24 +76,44 @@ export default function AdminPricingDashboard() {
     };
 
     const handleRecalculate = async (product: any) => {
-        const w = product.weight_type === 'fixed' ? product.weight_kg : (product.min_weight + product.max_weight)/2 || 1;
         try {
-            const res = await fetch(`/api/shopping/recommend-price`, {
+            console.log(`[Client] Requesting recalculation for product: ${product.id}`);
+            const res = await fetch(`/api/ai/price-recommendation/recalculate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query: product.name,
-                    weight: w,
-                    unit: product.weight_unit || 'kg',
-                    attributes: [],
-                    sellerPrice: product.price_total
-                })
+                body: JSON.stringify({ productId: product.id })
             });
             const data = await res.json();
-            alert(`[${product.name}] 재계산 완료!\n추천 적정가: ${data.minFairPrice?.toLocaleString()} ~ ${data.maxFairPrice?.toLocaleString()}원\n상태: ${data.priceStatus?.toUpperCase()}`);
-            fetchData();
-        } catch(e) {
-            alert('재계산 중 오류가 발생했습니다.');
+            
+            if (!res.ok) {
+                console.error("[Client] 재계산 API 응답 실패:", res.status, data);
+                alert(`재계산 중 오류가 발생했습니다: ${data.error || res.statusText}`);
+                return;
+            }
+
+            console.log(`[Client] 재계산 완료 (상품명: ${product.name}):`, data);
+            
+            // Only update the single affected row preserving the rest
+            setProducts(prevProducts => prevProducts.map(p => {
+                if (p.id === product.id) {
+                    return {
+                        ...p,
+                        recommendedPrice: data.recommendedPrice,
+                        minFairPrice: data.minAllowedPrice,
+                        maxFairPrice: data.maxAllowedPrice,
+                        priceStatus: data.status,
+                        confidenceScore: data.confidence,
+                        lastCalculated: new Date(data.calculatedAt).toLocaleDateString()
+                    };
+                }
+                return p;
+            }));
+            
+            alert(`[${product.name}] 재계산 완료! (해당 행 반영됨)\n상태: ${data.status.toUpperCase()}`);
+
+        } catch(e: any) {
+            console.error("[Client] 재계산 중 네트워크/Client 예외 발생:", e);
+            alert(`재계산 중 시스템 통신 오류가 발생했습니다: ${e.message}`);
         }
     };
 

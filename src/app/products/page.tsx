@@ -76,14 +76,30 @@ export default function ProductsPage() {
                                         <h3 style={{ fontSize: '1.25rem', marginBottom: '12px' }}>{product.name}</h3>
                                         {/* Optional tags can go here */}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>{product.price_total.toLocaleString()}원</span>
+                                            <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+                                                {(() => {
+                                                    if (product.weight_type === 'variable') {
+                                                        return `${product.price_per_kg.toLocaleString()}원 / kg`;
+                                                    } else if (product.weight_type === 'range') {
+                                                        const first = product.weight_options?.[0];
+                                                        if (first) {
+                                                            const p = first.price + (product.price_fee || Math.round(first.price * 0.1)) + 3000;
+                                                            return `${p.toLocaleString()}원~`;
+                                                        }
+                                                    }
+                                                    return `${product.price_total.toLocaleString()}원`;
+                                                })()}
+                                            </span>
                                             <span style={{
-                                                background: 'var(--accent)',
+                                                background: product.weight_type === 'variable' ? '#fdf2f2' : (product.weight_type === 'range' ? '#f0fdf4' : 'var(--accent)'),
+                                                color: product.weight_type === 'variable' ? '#991b1b' : (product.weight_type === 'range' ? '#166534' : 'inherit'),
                                                 padding: '4px 12px',
                                                 borderRadius: '12px',
                                                 fontSize: '0.8rem',
-                                                fontWeight: 600
-                                            }}>{product.category === 'vegetable' ? '채소' : '곡물'}</span>
+                                                fontWeight: 800
+                                            }}>
+                                                {product.weight_type === 'variable' ? '실중량' : (product.weight_type === 'range' ? '세트형' : '고정형')}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

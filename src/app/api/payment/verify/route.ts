@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// 일반 anon 키 대신 서버 전용 service role 키를 사용하여 RLS(보안 규칙) 우회
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -61,13 +62,40 @@ export async function POST(req: NextRequest) {
     if (orderError) throw orderError;
 
     // 4. 주문 상세 상품(Order Items) 데이터를 배열 형태로 준비해서 삽입
-    const orderItemsData = items.map((item: any) => ({
-      order_id: orderHeader.id,
-      product_id: item.products.id,
-      quantity: item.quantity,
-      unit_price: item.products.price_total,
-      total_price: item.products.price_total * item.quantity
-    }));
+    const orderItemsData = items.map((item: any) => {
+      const product = item.products;
+      const meta = item.metadata || {};
+      const weightType = meta.weight_type || product.weight_type || 'fixed';
+      
+      let finalPrice = 0;
+      let unitPrice = product.price_total;
+
+      if (weightType === 'fixed') {
+          finalPrice = product.price_total;
+      } else if (weightType === 'range') {
+          const optIndex = meta.selected_option_index ?? 0;
+          const opt = product.weight_options?.[optIndex] || { weight: 1, price: 0 };
+          finalPrice = opt.price + (product.price_fee || Math.round(opt.price * 0.1)) + (product.price_logistics || 3000);
+          unitPrice = finalPrice;
+      } else if (weightType === 'variable') {
+          const avgW = (product.min_weight + product.max_weight) / 2;
+          const farmPrice = Math.round(avgW * product.price_per_kg);
+          finalPrice = farmPrice + Math.round(farmPrice * 0.1) + (product.price_logistics || 3000);
+          unitPrice = product.price_per_kg; // For variable, unit price is per kg
+      }
+
+      const aiDiscount = meta.ai_discount || 0;
+      finalPrice = Math.max(0, finalPrice - aiDiscount);
+
+      return {
+        order_id: orderHeader.id,
+        product_id: item.products.id,
+        quantity: item.quantity,
+        unit_price: unitPrice,
+        total_price: finalPrice,
+        metadata: meta
+      };
+    });
 
     const { error: itemsError } = await supabase
       .from('order_items')

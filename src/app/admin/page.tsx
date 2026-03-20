@@ -32,6 +32,12 @@ export default function AdminDashboard() {
                         link="/admin/fees" 
                         icon="📈" 
                     />
+                    <DashboardCard 
+                        title="🛒 마트 가격 비교 관리" 
+                        desc="네이버·이마트·쿠팡 가격 자동 수집 및 30% 할인 추천가 일일 업데이트" 
+                        link="/admin/market-prices" 
+                        icon="💹" 
+                    />
                 </div>
             </div>
         </div>

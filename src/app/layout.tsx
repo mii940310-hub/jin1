@@ -3,6 +3,7 @@ import Image from "next/image";
 import "./globals.css";
 import { getMissingEnvs, validateEnvs } from "@/lib/env-check";
 import ChatBot from "@/components/ChatBot";
+import Navigation from "@/components/Navigation";
 
 // Run validation in dev mode console
 if (process.env.NODE_ENV === 'development') {
@@ -10,9 +11,9 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export const metadata: Metadata = {
-  title: "Highland Fresh | 강원 정선 고랭지 산지직송 직거래",
-  description: "강원도 정선 고랭지 농산물을 산지에서 소비자에게 직배송하는 가격 투명 직거래 플랫폼입니다. 신선한 채소와 곡물을 합리적인 가격에 만나보세요.",
-  keywords: "강원도, 정선, 고랭지, 채소, 곡물, 산지직송, 직거래, 신선식품",
+  title: "슝팜 (Swoong Farm) | 농가 직거래 고랭지 산지직송",
+  description: "고랭지 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼 슝팜(Swoong Farm). 신선도와 가격 투명성을 직접 경험해보세요.",
+  keywords: "슝팜, Swoong Farm, 강원도, 정선, 고랭지, 산지직송, 농가직거래, 신선식품, AI추천가격",
 };
 
 export default function RootLayout({
@@ -27,24 +28,21 @@ export default function RootLayout({
       <body>
         <EnvWarningBanner missingEnvs={missingEnvs} />
         <nav className="navbar" style={{ top: missingEnvs.length > 0 ? '40px' : '0' }}>
-          <div className="logo" style={{ display: 'flex', alignItems: 'center' }}>
-            <Image src="/logo.png" alt="슝팜 로고" width={120} height={120} style={{ objectFit: 'contain' }} />
+          <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '-0.5px' }}>
+              슝팜 <span style={{ color: 'var(--primary-light)', fontWeight: 300 }}>Swoong Farm</span>
+            </span>
           </div>
-          <div className="nav-links" style={{ display: 'flex', gap: '32px', fontWeight: 500 }}>
-            <a href="/">상품 둘러보기</a>
-            <a href="/cart">장바구니</a>
-            <a href="/my-page/orders">마이페이지</a>
-            <a href="/farmer">농가 홈</a>
-            <a href="/admin" style={{ color: '#be185d' }}>총괄 관리자</a>
-            <a href="/login">로그인</a>
-          </div>
+          {/* 동적 역할 기반 네비게이션 적용 (총괄/농가/일반 분리) */}
+          <Navigation />
         </nav>
         <main>{children}</main>
-        <footer style={{ padding: '80px 0', textAlign: 'center', background: 'var(--accent)', marginTop: '80px' }}>
+        <footer style={{ padding: '60px 0', textAlign: 'center', background: 'var(--accent)', marginTop: '80px', borderTop: '1px solid var(--border)' }}>
           <div className="container">
-            <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-              © 2026 Highland Fresh. All rights reserved. <br />
-              강원도 고랭지 채소·곡물 유통 혁신 플랫폼
+            <h2 style={{ fontSize: '1.2rem', color: 'var(--primary)', marginBottom: '12px' }}>슝팜 (Swoong Farm)</h2>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+              © 2026 슝팜 (Swoong Farm). All rights reserved. <br />
+              농가 직거래 플랫폼 • 강원도 고랭지 채소 유통 혁신
             </p>
           </div>
         </footer>

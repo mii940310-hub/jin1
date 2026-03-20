@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginContent() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [msg, setMsg] = useState({ type: '', text: '' });
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get('redirect') || '/';
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,7 +29,7 @@ export default function LoginPage() {
             if (error) throw error;
 
             setMsg({ type: 'success', text: '로그인 성공! 이동 중...' });
-            router.push('/');
+            router.push(redirectUrl);
         } catch (err: any) {
             setMsg({ type: 'error', text: err.message });
         } finally {
@@ -152,5 +155,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div style={{ paddingTop: '150px', textAlign: 'center' }}>로딩 중...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 }

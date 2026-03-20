@@ -11,103 +11,219 @@ export default function EditProduct() {
     const [category, setCategory] = useState<'vegetable' | 'grain'>('vegetable');
     const [harvestDate, setHarvestDate] = useState('');
     const [description, setDescription] = useState('');
-    const [basePrice, setBasePrice] = useState(8000);
-    const [weightKg, setWeightKg] = useState(10);
-    const [stockQuantity, setStockQuantity] = useState(100);
-    const [calculating, setCalculating] = useState(false);
-    const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+    
+    // 무게 방식 및 단위
+    const [weightType, setWeightType] = useState<'fixed' | 'range' | 'variable'>('fixed');
+    const [weightUnit, setWeightUnit] = useState<'g' | 'kg'>('kg');
+    
+    // 고정 중량형 (Fixed)
+    const [fixedWeight, setFixedWeight] = useState(1);
+    const [basePrice, setBasePrice] = useState<number | ''>(''); // Farm 수취액
+
+    // 구간형/세트형 (Range)
+    const [weightOptions, setWeightOptions] = useState<{weight: number, price: number, stock: number}[]>([
+        { weight: 3, price: 15000, stock: 100 }
+    ]);
+
+    // 가변형 (Variable)
+    const [minWeight, setMinWeight] = useState(8);
+    const [maxWeight, setMaxWeight] = useState(10);
+    const [pricePerKg, setPricePerKg] = useState(1500);
+    
     const [loading, setLoading] = useState(false);
     const [farmId, setFarmId] = useState<string | null>(null);
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-
-    const logistics = 3000;
-    const platformFee = Math.round(basePrice * 0.1);
-    const totalPrice = basePrice + logistics + platformFee;
-    const pricePerKg = Math.round(totalPrice / weightKg);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchProductData = async () => {
+        const checkUserAndFetchProduct = async () => {
+            if (!params?.id) return;
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 alert('로그인이 필요합니다.');
                 router.push('/login');
                 return;
             }
-
             const { data: farm } = await supabase.from('farms').select('id').eq('owner_id', user.id).single();
             if (farm) setFarmId(farm.id);
 
-            // Fetch product data
-            if (params.id) {
-                const { data: product } = await supabase.from('products').select('*').eq('id', params.id).single();
-                if (product) {
-                    setName(product.name);
-                    setCategory(product.category as any);
-                    setHarvestDate(product.harvest_date);
-                    setDescription(product.description || '');
-                    setBasePrice(product.price_farmer);
-                    setWeightKg(product.weight_kg);
-                    setStockQuantity(product.stock_quantity);
-                    setImageUrl(product.image_url);
+            // Fetch Product
+            const { data: product } = await supabase.from('products').select('*').eq('id', params.id).single();
+            if (product && product.farm_id === farm?.id) {
+                setName(product.name);
+                setCategory(product.category);
+                setHarvestDate(product.harvest_date);
+                setDescription(product.description || '');
+                setWeightType(product.weight_type || 'fixed');
+                setWeightUnit(product.weight_unit || 'kg');
+                setImagePreview(product.image_url);
+
+                if (product.weight_type === 'fixed') {
+                    setFixedWeight(product.weight_unit === 'kg' ? product.weight_kg : product.weight_kg * 1000);
+                    setBasePrice(product.price_total);
+                } else if (product.weight_type === 'range') {
+                    setWeightOptions(product.weight_options || []);
+                } else if (product.weight_type === 'variable') {
+                    setMinWeight(product.min_weight || 8);
+                    setMaxWeight(product.max_weight || 10);
+                    setPricePerKg(product.price_per_kg || 1500);
                 }
+            } else {
+                alert('상품 정보를 찾을 수 없거나 권한이 없습니다.');
+                router.push('/farmer/products');
             }
         };
-        fetchProductData();
+        checkUserAndFetchProduct();
     }, [router, params.id]);
 
-    const handlePriceRecommendation = async () => {
-        if (!harvestDate) {
-            alert('수확 예정일을 먼저 선택해주세요.');
-            return;
-        }
-        setCalculating(true);
-        setAiReasoning(null);
+    const addOption = () => {
+        setWeightOptions([...weightOptions, { weight: 0, price: 0, stock: 100 }]);
+    };
 
-        try {
-            const response = await fetch('/api/ai/price-recommendation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ category, currentPrice: basePrice, harvestDate, productName: name })
-            });
+    const removeOption = (index: number) => {
+        setWeightOptions(weightOptions.filter((_, i) => i !== index));
+    };
 
-            const data = await response.json();
-            if (data.error) throw new Error(data.error);
+    const updateOption = (index: number, field: string, value: number) => {
+        const newOptions = [...weightOptions];
+        (newOptions[index] as any)[field] = value;
+        setWeightOptions(newOptions);
+    };
 
-            setAiReasoning(data.reasoning);
-            if (data.recommendedPrice) setBasePrice(data.recommendedPrice);
-        } catch (error: any) {
-            console.error('AI_PRICE_ERROR:', error);
-            alert('AI 분석 중 오류가 발생했습니다.');
-        } finally {
-            setCalculating(false);
+    const applyTemplate = (type: string) => {
+        if (type === 'potato') {
+            setName('강원도 고랭지 수확 감자 (박스)');
+            setWeightType('range');
+            setWeightOptions([
+                { weight: 3, price: 12000, stock: 100 },
+                { weight: 5, price: 18000, stock: 100 },
+                { weight: 10, price: 32000, stock: 50 }
+            ]);
+        } else if (type === 'cabbage') {
+            setName('정선 고랭지 배추 (박스형)');
+            setWeightType('variable');
+            setMinWeight(8);
+            setMaxWeight(10);
+            setPricePerKg(1800);
         }
     };
 
-    const handleUpdate = async () => {
+    const fetchAiPriceForAll = async () => {
+        if (!name) return alert('상품명을 먼저 입력해주세요. (예: 정선 아우라지 미백 옥수수)');
+        
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/shopping/market-prices?query=${encodeURIComponent(name)}`);
+            const data = await res.json();
+            const validPrices = [data.naver, data.emart, data.gmarket].filter(p => p !== null);
+            
+            if (validPrices.length > 0) {
+                const minPrice = Math.min(...validPrices);
+                const baseAiPrice = Math.round((minPrice * 0.90) / 100) * 100; // 10% off lowest market price
+
+                if (weightType === 'fixed') {
+                    // For fixed, we assume the baseAiPrice is for the fixedWeight
+                    setBasePrice(baseAiPrice);
+                } else if (weightType === 'range') {
+                    // For range, baseAiPrice is for the first option's weight, others scale proportionally
+                    if (weightOptions.length > 0) {
+                        const baseW = weightOptions[0].weight || 1;
+                        const newOptions = weightOptions.map(opt => ({
+                            ...opt,
+                            price: Math.round((baseAiPrice * (opt.weight / baseW)) / 100) * 100
+                        }));
+                        setWeightOptions(newOptions);
+                    }
+                } else if (weightType === 'variable') {
+                    // Variable usually means a typical box (e.g. 10kg)
+                    // We deduce pricePerKg assuming baseAiPrice represents a 10kg box as standard
+                    const typicalBoxWeight = 10;
+                    setPricePerKg(Math.round((baseAiPrice / typicalBoxWeight) / 100) * 100);
+                }
+                alert('AI가 시중 최저가를 분석하여 최적의 경쟁력 있는 가격(-10%)을 추천했습니다.\n추천가를 바탕으로 자유롭게 가격을 수정하실 수 있습니다.');
+            } else {
+                alert('비교할 생물 상품 시장 데이터를 찾을 수 없습니다. 상품명을 조금 더 포괄적으로 변경해보세요.');
+            }
+        } catch (e) {
+            alert('AI 가격 산출 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRegister = async () => {
         if (!name || !harvestDate) {
-            alert('모든 필드를 입력해주세요.');
+            alert('필수 정보를 입력해주세요.');
             return;
         }
 
         setLoading(true);
 
-        const payload = {
+        let imageUrl = imagePreview; // keep existing by default
+        if (imageFile) {
+            const ext = imageFile.name.split('.').pop() || 'jpg';
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+            const filePath = `${farmId}/${fileName}`;
+            const { error: uploadError } = await supabase.storage.from('products').upload(filePath, imageFile);
+            if (!uploadError) {
+                const { data: publicUrlData } = supabase.storage.from('products').getPublicUrl(filePath);
+                imageUrl = publicUrlData.publicUrl;
+            }
+        }
+
+        // 공통 물류비(박스 포장비 등, 택배비 별도)
+        const packagingFee = 1500;
+        
+        let payload: any = {
             name,
             category,
             harvest_date: harvestDate,
             description,
-            price_farmer: basePrice,
-            price_logistics: logistics,
-            price_fee: platformFee,
-            price_total: totalPrice,
-            weight_kg: weightKg,
-            stock_quantity: stockQuantity,
+            farm_id: farmId,
+            image_url: imageUrl,
+            weight_type: weightType,
+            weight_unit: weightUnit,
+            price_logistics: packagingFee,
         };
+
+        if (weightType === 'fixed') {
+            const finalTotal = Number(basePrice) || 0;
+            payload.weight_kg = weightUnit === 'kg' ? fixedWeight : fixedWeight / 1000;
+            payload.price_total = finalTotal;
+            payload.price_fee = Math.round(finalTotal * 0.1);
+            payload.price_farmer = finalTotal - payload.price_fee - packagingFee;
+            payload.stock_quantity = 100;
+        } else if (weightType === 'range') {
+            const modifiedOptions = weightOptions.map(opt => {
+                const optFee = Math.round(opt.price * 0.1);
+                return { ...opt, price_farmer: opt.price - optFee - packagingFee };
+            });
+            payload.weight_options = modifiedOptions;
+
+            const first = modifiedOptions[0];
+            payload.weight_kg = first.weight;
+            payload.price_total = first.price;
+            payload.price_fee = Math.round(first.price * 0.1);
+            payload.price_farmer = first.price - payload.price_fee - packagingFee;
+            payload.stock_quantity = modifiedOptions.reduce((acc, cur) => acc + cur.stock, 0);
+        } else if (weightType === 'variable') {
+            payload.min_weight = minWeight;
+            payload.max_weight = maxWeight;
+            payload.price_per_kg = pricePerKg; // AI price per kg
+            
+            const avgW = (minWeight + maxWeight) / 2;
+            const finalTotal = Math.round(avgW * pricePerKg);
+            
+            payload.weight_kg = avgW;
+            payload.price_total = finalTotal;
+            payload.price_fee = Math.round(finalTotal * 0.1);
+            payload.price_farmer = finalTotal - payload.price_fee - packagingFee;
+            payload.stock_quantity = 100;
+        }
 
         const { error } = await supabase.from("products").update(payload).eq('id', params.id);
 
         if (error) {
-            console.error("PRODUCT_UPDATE_ERROR:", error);
             alert(`수정 실패: ${error.message}`);
             setLoading(false);
             return;
@@ -118,128 +234,188 @@ export default function EditProduct() {
     };
 
     return (
-        <div className="fade-in" style={{ paddingTop: '100px', paddingBottom: '100px' }}>
+        <div className="fade-in" style={{ paddingTop: '100px', paddingBottom: '100px', background: '#f9fbf9' }}>
             <div className="container" style={{ maxWidth: '800px' }}>
-                <h1 style={{ fontSize: '2.5rem', marginBottom: '32px' }}>상품 정보 수정</h1>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                    <h1 style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--primary)' }}>상품 수정</h1>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => applyTemplate('potato')} style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: 'white', fontSize: '0.9rem', cursor: 'pointer' }}>🥔 감자 템플릿 덮어쓰기</button>
+                        <button onClick={() => applyTemplate('cabbage')} style={{ padding: '8px 16px', borderRadius: '20px', border: '1px solid #ddd', background: 'white', fontSize: '0.9rem', cursor: 'pointer' }}>🥬 배추 템플릿 덮어쓰기</button>
+                    </div>
+                </div>
 
-                <div style={{ display: 'grid', gap: '32px' }}>
-                    {/* Form Section */}
-                    <section style={{ background: 'white', padding: '32px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-                        <div style={{ marginBottom: '24px' }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>품목 선택</label>
-                            <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value as any)}
-                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                            >
-                                <option value="vegetable">채소 (배추, 무 등)</option>
-                                <option value="grain">곡물 (옥수수, 감자 등)</option>
-                            </select>
+                <div style={{ display: 'grid', gap: '24px' }}>
+                    {/* 기본 정보 */}
+                    <Card title="기본 정보">
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={labelStyle}>상품명</label>
+                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="상품명을 입력하세요" style={inputStyle} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <div>
+                                <label style={labelStyle}>카테고리</label>
+                                <select value={category} onChange={(e) => setCategory(e.target.value as any)} style={inputStyle}>
+                                    <option value="vegetable">채소</option>
+                                    <option value="grain">곡물</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>수확 예정일</label>
+                                <input type="date" value={harvestDate} onChange={(e) => setHarvestDate(e.target.value)} style={inputStyle} />
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* 무게 방식 선택 */}
+                    <Card title="무게 및 가격 설정">
+                        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                            <Tab active={weightType === 'fixed'} onClick={() => setWeightType('fixed')} icon="📦" label="고정 중량형" sub="쌀, 잡곡 등" />
+                            <Tab active={weightType === 'range'} onClick={() => setWeightType('range')} icon="⚖️" label="구간형 (세트)" sub="감자, 고구마 등" />
+                            <Tab active={weightType === 'variable'} onClick={() => setWeightType('variable')} icon="🚛" label="가변형 (실중량)" sub="배추, 무 등" />
+                        </div>
+                        
+                        <div style={{ marginBottom: '24px', padding: '16px', background: '#ebf8ff', borderRadius: '12px', border: '1px solid #bee3f8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <h4 style={{ margin: '0 0 4px', color: '#2b6cb0', fontSize: '1.05rem', fontWeight: 700 }}>AI 추천 판매가 확인하기</h4>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#4a5568' }}>AI가 시장 최저가를 분석해 10% 저렴한 경쟁력 있는 최적가를 추천합니다. (권장)</p>
+                            </div>
+                            <button onClick={fetchAiPriceForAll} disabled={loading} style={{ background: '#3182ce', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                🤖 AI 가격 산출하기
+                            </button>
                         </div>
 
-                        <div style={{ marginBottom: '24px' }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>상품명</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                            />
-                        </div>
-
-                        {imageUrl && (
-                            <div style={{ marginBottom: '24px' }}>
-                                <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>현재 이미지</label>
-                                <img src={imageUrl} alt="Product" style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border)' }} />
+                        {weightType === 'fixed' && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '16px', alignItems: 'flex-end' }}>
+                                <div>
+                                    <label style={labelStyle}>중량</label>
+                                    <input type="number" value={fixedWeight} onChange={(e) => setFixedWeight(Number(e.target.value))} style={inputStyle} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>단위</label>
+                                    <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value as any)} style={inputStyle}>
+                                        <option value="kg">kg</option>
+                                        <option value="g">g</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>최종 판매가 (박스당)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input type="number" value={basePrice} onChange={(e) => setBasePrice(Number(e.target.value))} placeholder="가격을 입력하세요" style={inputStyle} />
+                                        <span style={{ position: 'absolute', right: '12px', top: '12px', color: '#888' }}>원</span>
+                                    </div>
+                                </div>
                             </div>
                         )}
 
-                        <div style={{ marginBottom: '24px' }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>상세 설명</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                style={{ width: '100%', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)', minHeight: '200px', fontFamily: 'inherit' }}
-                            />
-                        </div>
-
-                        <div style={{ marginBottom: '24px' }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>재고 수량 (박스)</label>
-                            <input
-                                type="number"
-                                value={stockQuantity}
-                                onChange={(e) => setStockQuantity(Number(e.target.value))}
-                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                            />
-                        </div>
-
-                        <div style={{ marginBottom: '24px' }}>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>수확 예정일</label>
-                            <input
-                                type="date"
-                                value={harvestDate}
-                                onChange={(e) => setHarvestDate(e.target.value)}
-                                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                            />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                        {weightType === 'range' && (
                             <div>
-                                <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>박스당 중량 (kg)</label>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input type="number" value={weightKg} onChange={(e) => setWeightKg(Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }} />
-                                    <span>kg</span>
+                                <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.9rem', color: '#666' }}>* 소비자에게 다양한 선택지를 제공하세요 (최대 10kg 제한)</span>
+                                    <button onClick={addOption} style={{ color: 'var(--primary)', fontWeight: 700, background: 'none' }}>+ 옵션 추가</button>
                                 </div>
+                                {weightOptions.map((opt, i) => (
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr 1fr 40px', gap: '12px', marginBottom: '12px', alignItems: 'center', background: '#f8faf8', padding: '12px', borderRadius: '8px' }}>
+                                        <input type="number" value={opt.weight} onChange={(e) => updateOption(i, 'weight', Number(e.target.value))} placeholder="무게(kg)" style={inputStyle} />
+                                        <input type="number" value={opt.price} onChange={(e) => updateOption(i, 'price', Number(e.target.value))} placeholder="가격을 입력하세요" style={inputStyle} />
+                                        <input type="number" value={opt.stock} onChange={(e) => updateOption(i, 'stock', Number(e.target.value))} placeholder="재고" style={inputStyle} />
+                                        <button onClick={() => removeOption(i)} style={{ color: '#ff4d4f', fontSize: '1.2rem', cursor: 'pointer', border: 'none', background: 'none' }}>×</button>
+                                    </div>
+                                ))}
                             </div>
+                        )}
+
+                        {weightType === 'variable' && (
                             <div>
-                                <label style={{ display: 'block', fontWeight: 600, marginBottom: '8px' }}>희망 수취가 (박스당)</label>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input type="number" value={basePrice} onChange={(e) => setBasePrice(Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }} />
-                                    <span>원</span>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                                    <div>
+                                        <label style={labelStyle}>최소 무게 (kg)</label>
+                                        <input type="number" value={minWeight} onChange={(e) => setMinWeight(Number(e.target.value))} style={inputStyle} />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>최대 무게 (kg)</label>
+                                        <input type="number" value={maxWeight} onChange={(e) => setMaxWeight(Number(e.target.value))} style={inputStyle} />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>kg당 가격</label>
+                                        <input type="number" value={pricePerKg} onChange={(e) => setPricePerKg(Number(e.target.value))} placeholder="가격을 입력하세요" style={inputStyle} />
+                                    </div>
+                                </div>
+                                <div style={{ background: '#eefef1', padding: '16px', borderRadius: '8px', border: '1px solid #dcfce7' }}>
+                                    <p style={{ margin: 0, fontSize: '0.95rem', color: '#065f46' }}>
+                                        💡 <strong>예상 가격:</strong> {Math.round(minWeight * pricePerKg).toLocaleString()}원 ~ {Math.round(maxWeight * pricePerKg).toLocaleString()}원
+                                    </p>
+                                    <p style={{ marginTop: '8px', fontSize: '0.8rem', color: '#666' }}>* 소비자는 해당 범위 내에서 실측 무게에 따라 결제하게 됩니다.</p>
                                 </div>
                             </div>
-                        </div>
+                        )}
+                    </Card>
 
+                    {/* 사진 및 상세설명 */}
+                    <Card title="상세 정보">
                         <div style={{ marginBottom: '24px' }}>
-                            <button onClick={handlePriceRecommendation} disabled={calculating} style={{ width: '100%', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', padding: '14px', borderRadius: '12px', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-                                {calculating ? '전문 AI가 시세를 분석하고 있습니다...' : '✨ AI 적정 가격 다시 추천받기'}
-                            </button>
-                            {aiReasoning && (
-                                <div style={{ marginTop: '16px', padding: '20px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7', fontSize: '0.95rem', color: '#065f46', whiteSpace: 'pre-wrap' }}>
-                                    {aiReasoning}
-                                </div>
-                            )}
+                            <label style={labelStyle}>상품 사진</label>
+                            <label style={imageUploadStyle}>
+                                {imagePreview ? (
+                                    <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <span style={{ color: '#888' }}>📷 사진 등록하기</span>
+                                )}
+                                <input type="file" style={{ display: 'none' }} onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        setImageFile(file);
+                                        setImagePreview(URL.createObjectURL(file));
+                                    }
+                                }} />
+                            </label>
                         </div>
-                    </section>
-
-                    {/* Pricing Breakdown Card */}
-                    <section className="glass" style={{ padding: '32px', borderRadius: 'var(--radius)', background: 'var(--primary)', color: 'white' }}>
-                        <h3 style={{ marginBottom: '20px' }}>📊 실시간 판매가 자동 산출</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>농가 수취액 (내 통장 입금액)</span>
-                                <span style={{ fontWeight: 700, fontSize: '1.2rem', color: '#6ee7b7' }}>{basePrice.toLocaleString()}원</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>플랫폼 수수료 (10%)</span>
-                                <span>+ {platformFee.toLocaleString()}원</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>산지 직배송 물류비</span>
-                                <span>+ {logistics.toLocaleString()}원</span>
-                            </div>
-                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '16px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '1.75rem', fontWeight: 800 }}>
-                                <div>최종 고객 판매가</div>
-                                <div>{totalPrice.toLocaleString()}원</div>
-                            </div>
+                        <div>
+                            <label style={labelStyle}>상품 설명</label>
+                            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="농산물의 특징이나 농장의 이야기를 들려주세요" style={{ ...inputStyle, minHeight: '150px' }} />
                         </div>
-                    </section>
+                    </Card>
 
-                    <button className="btn-primary" onClick={handleUpdate} disabled={loading} style={{ padding: '20px', fontSize: '1.25rem', cursor: loading ? 'not-allowed' : 'pointer' }}>
-                        {loading ? '수정 중...' : '상품 수정 완료하기'}
+                    <button onClick={handleRegister} disabled={loading} style={submitButtonStyle}>
+                        {loading ? '상품 수정 중...' : '상품 수정 완료'}
                     </button>
                 </div>
             </div>
         </div>
     );
 }
+
+// UI Components
+function Card({ title, children }: { title: string, children: React.ReactNode }) {
+    return (
+        <section style={{ background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid #eee', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px', color: '#333' }}>{title}</h3>
+            {children}
+        </section>
+    );
+}
+
+function Tab({ active, icon, label, sub, onClick }: any) {
+    return (
+        <div onClick={onClick} style={{
+            flex: 1, padding: '16px', borderRadius: '12px', border: active ? '2px solid var(--primary)' : '2px solid #eee',
+            background: active ? '#f0fdf4' : 'white', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+        }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{icon}</div>
+            <div style={{ fontWeight: 700, color: active ? 'var(--primary)' : '#444' }}>{label}</div>
+            <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '4px' }}>{sub}</div>
+        </div>
+    );
+}
+
+// Styles
+const labelStyle: React.CSSProperties = { display: 'block', fontWeight: 600, marginBottom: '8px', color: '#555', fontSize: '0.95rem' };
+const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #ddd', fontSize: '1rem', outline: 'none' };
+const imageUploadStyle: React.CSSProperties = {
+    width: '100%', height: '200px', background: '#f8fafc', border: '2px dashed #ddd', borderRadius: '12px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden'
+};
+const submitButtonStyle: React.CSSProperties = {
+    width: '100%', padding: '20px', background: 'var(--primary)', color: 'white', borderRadius: '16px',
+    fontSize: '1.25rem', fontWeight: 800, border: 'none', cursor: 'pointer', marginTop: '20px', boxShadow: '0 8px 16px rgba(26, 77, 46, 0.2)'
+};
+

@@ -35,11 +35,56 @@ export default function CartPage() {
     }, []);
 
     const hasPerishable = items.some((item) => ['과일', '채소'].includes(item.products?.category));
-    
-    const total = items.reduce((acc, item) => acc + (item.products.price_total * item.quantity), 0);
-    const baseShipping = items.length > 0 ? 3000 : 0;
-    const extraShipping = (items.length > 0 && isRemoteArea) ? 3000 : 0;
+
+    // 가격 계산: 상품 상세 페이지와 동일한 로직 사용
+    // quantity는 선택한 수량(개수) = weight_kg와 같은 단위
+    // price_total은 weight_kg 기준의 가격이므로, quantity / weight_kg 비율로 계산
+    const itemsWithPricing = items.map(item => {
+        const product = item.products;
+        const meta = item.metadata || {};
+        const weightType = meta.weight_type || product.weight_type || 'fixed';
+        
+        let finalPrice = 0;
+        let unitLabel = '';
+
+        if (weightType === 'fixed') {
+            finalPrice = product.price_total;
+            unitLabel = `${product.weight_kg}${product.weight_unit || 'kg'}`;
+        } else if (weightType === 'range') {
+            const optIndex = meta.selected_option_index ?? 0;
+            const opt = product.weight_options?.[optIndex] || { weight: 0, price: 0 };
+            finalPrice = opt.price + (product.price_fee || Math.round(opt.price * 0.1)) + (product.price_logistics || 3000);
+            unitLabel = `${opt.weight}kg (세트)`;
+        } else if (weightType === 'variable') {
+            const avgW = (product.min_weight + product.max_weight) / 2;
+            const farmPrice = Math.round(avgW * product.price_per_kg);
+            finalPrice = farmPrice + Math.round(farmPrice * 0.1) + (product.price_logistics || 3000);
+            unitLabel = `${product.min_weight}~${product.max_weight}kg (가변)`;
+        }
+
+        const aiDiscount = meta.ai_discount || 0;
+        finalPrice = Math.max(0, finalPrice - aiDiscount);
+
+        return {
+            ...item,
+            finalPrice,
+            unitLabel,
+            aiDiscount
+        };
+    });
+
+    const total = itemsWithPricing.reduce((acc, item) => acc + item.finalPrice, 0);
+    const baseShipping = itemsWithPricing.length > 0 ? 3000 : 0;
+    const extraShipping = (itemsWithPricing.length > 0 && isRemoteArea) ? 3000 : 0;
     const shipping = baseShipping + extraShipping;
+
+    // 장바구니 아이템 삭제
+    const removeItem = async (itemId: string) => {
+        const { error } = await supabase.from('cart_items').delete().eq('id', itemId);
+        if (!error) {
+            setItems(items.filter(item => item.id !== itemId));
+        }
+    };
 
     if (loading) return <div style={{ paddingTop: '150px', textAlign: 'center' }}>장바구니 확인 중...</div>;
 
@@ -61,19 +106,20 @@ export default function CartPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: items.length > 0 ? '1.5fr 1fr' : '1fr', gap: '40px' }}>
                     {/* Item List */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {items.length === 0 ? (
+                        {itemsWithPricing.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '100px 0', border: '1px dashed var(--border)', borderRadius: 'var(--radius)' }}>
                                 장바구니가 비어 있습니다.
                             </div>
                         ) : (
-                            items.map((item) => (
+                            itemsWithPricing.map((item) => (
                                 <div key={item.id} style={{
                                     display: 'flex',
                                     gap: '20px',
                                     background: 'white',
                                     padding: '24px',
                                     borderRadius: 'var(--radius)',
-                                    border: '1px solid var(--border)'
+                                    border: '1px solid var(--border)',
+                                    position: 'relative'
                                 }}>
                                     <div style={{
                                         width: '100px',
@@ -86,12 +132,37 @@ export default function CartPage() {
                                     <div style={{ flex: 1 }}>
                                         <h3 style={{ fontSize: '1.1rem', marginBottom: '8px' }}>{item.products.name}</h3>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <span>수량: {item.quantity}</span>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <span style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>
+                                                    선택 옵션: <strong style={{ color: 'var(--primary)' }}>{item.unitLabel}</strong>
+                                                </span>
+                                                {item.aiDiscount !== 0 && (
+                                                    <span style={{ fontSize: '0.85rem', color: item.aiDiscount > 0 ? '#38a169' : '#d69e2e', fontWeight: 600 }}>
+                                                        ✨ AI 시세 연동 ({item.aiDiscount > 0 ? '-' : '+'}{Math.abs(item.aiDiscount).toLocaleString()}원)
+                                                    </span>
+                                                )}
                                             </div>
-                                            <span style={{ fontWeight: 700 }}>{(item.products.price_total * item.quantity).toLocaleString()}원</span>
+                                            <span style={{ fontWeight: 700 }}>{item.finalPrice.toLocaleString()}원</span>
                                         </div>
                                     </div>
+                                    {/* 삭제 버튼 */}
+                                    <button
+                                        onClick={() => removeItem(item.id)}
+                                        style={{
+                                            position: 'absolute',
+                                            top: '12px',
+                                            right: '12px',
+                                            background: 'none',
+                                            border: 'none',
+                                            color: 'var(--muted)',
+                                            cursor: 'pointer',
+                                            fontSize: '1.2rem',
+                                            padding: '4px'
+                                        }}
+                                        title="삭제"
+                                    >
+                                        ✕
+                                    </button>
                                 </div>
                             ))
                         )}

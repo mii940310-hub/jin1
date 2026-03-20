@@ -1,54 +1,76 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { signIn } from "next-auth/react";
+import { supabase } from '@/lib/supabase';
 
 export default function FarmerPage() {
     const [prices, setPrices] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         fetch('/api/market').then(res => res.json()).then(setPrices);
     }, []);
 
+    const handleKakaoLogin = async () => {
+        setLoading(true);
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'kakao',
+            options: {
+                redirectTo: `${window.location.origin}/farmer`,
+            },
+        });
+        if (error) {
+            alert('카카오 로그인 중 오류가 발생했습니다: ' + error.message);
+            setLoading(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-stone-50 p-6 flex items-center justify-center">
-            <div className="w-full max-w-4xl space-y-6">
+        <div className="fade-in" style={{ paddingTop: '120px', paddingBottom: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', background: 'var(--background)' }}>
+            <div className="container" style={{ maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '32px', width: '100%' }}>
                 {/* 1. 로그인 섹션 */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-200 text-center">
-                    <h1 className="text-2xl font-bold mb-6 text-stone-800">농가 서비스 시작하기</h1>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <button onClick={() => signIn('kakao')} className="bg-[#FEE500] text-black px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all">
-                            카카오로 1초 시작
-                        </button>
-                        <button onClick={() => signIn('facebook')} className="bg-[#1877F2] text-white px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all">
-                            페이스북으로 시작
+                <div style={{ background: 'white', padding: '40px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-lg)' }}>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '24px', color: 'var(--foreground)' }}>농가 서비스 시작하기</h1>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button 
+                            onClick={handleKakaoLogin} 
+                            disabled={loading}
+                            style={{ background: '#FEE500', color: '#000', padding: '14px 24px', borderRadius: '12px', fontWeight: 600, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>
+                            {loading ? (
+                                <>잠시만 기다려주세요...</>
+                            ) : (
+                                <>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000"><path d="M12 3c-5.52 0-10 3.58-10 8 0 2.85 1.83 5.34 4.57 6.74-.29 1.09-1.07 4.12-1.11 4.3-.06.27.14.3.29.2.14-.08 3.51-2.43 4.88-3.38.45.06.91.09 1.38.09 5.52 0 10-3.58 10-8s-4.48-8-10-8z" /></svg>
+                                    카카오로 1초 시작
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
 
                 {/* 2. 실시간 시세 섹션 */}
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-stone-800">📊 가락시장 실시간 시세</h2>
-                        <span className="text-sm text-green-600 font-medium">● 실시간 업데이트 중</span>
+                <div style={{ background: 'white', padding: '40px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--foreground)' }}>📊 가락시장 실시간 시세</h2>
+                        <span style={{ fontSize: '0.875rem', color: '#166534', fontWeight: 600 }}>● 실시간 업데이트 중</span>
                     </div>
-                    <div className="overflow-hidden rounded-xl border border-stone-100">
-                        <table className="w-full text-left">
-                            <thead className="bg-stone-50 text-stone-500 text-sm">
+                    <div style={{ overflow: 'hidden', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <thead style={{ background: 'var(--accent)', color: 'var(--muted)', fontSize: '0.9rem' }}>
                                 <tr>
-                                    <th className="p-4">품목</th>
-                                    <th className="p-4">규격</th>
-                                    <th className="p-4 text-right">경락가</th>
+                                    <th style={{ padding: '16px' }}>품목</th>
+                                    <th style={{ padding: '16px' }}>규격</th>
+                                    <th style={{ padding: '16px', textAlign: 'right' }}>경락가</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-stone-100 text-black">
+                            <tbody>
                                 {prices.length > 0 ? prices.map((item: any, i) => (
-                                    <tr key={i} className="hover:bg-stone-50">
-                                        <td className="p-4 font-medium">{item.auclNm || '로딩 중...'}</td>
-                                        <td className="p-4 text-stone-500 text-sm">{item.stdUnit || '-'}</td>
-                                        <td className="p-4 text-right font-bold text-orange-600">{item.avgPrice ? Number(item.avgPrice).toLocaleString() + '원' : '-'}</td>
+                                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = 'var(--accent)'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+                                        <td style={{ padding: '16px', fontWeight: 500 }}>{item.auclNm || '로딩 중...'}</td>
+                                        <td style={{ padding: '16px', color: 'var(--muted)', fontSize: '0.9rem' }}>{item.stdUnit || '-'}</td>
+                                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 700, color: '#d97706' }}>{item.avgPrice ? Number(item.avgPrice).toLocaleString() + '원' : '-'}</td>
                                     </tr>
                                 )) : (
-                                    <tr><td colSpan={3} className="p-4 text-center text-stone-500">시세 정보를 불러오는 중입니다...</td></tr>
+                                    <tr><td colSpan={3} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--muted)' }}>시세 정보를 불러오는 중입니다...</td></tr>
                                 )}
                             </tbody>
                         </table>
