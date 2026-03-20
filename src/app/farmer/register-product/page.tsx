@@ -92,7 +92,7 @@ export default function RegisterProduct() {
             // Updated to use the new Pricing Engine API
             const w = weightType === 'fixed' ? fixedWeight : (weightType === 'range' && weightOptions.length > 0 ? weightOptions[0].weight : 10);
             
-            const res = await fetch(`/api/shopping/recommend-price`, {
+            const res = await fetch(`/api/ai/price-recommendation/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: name, weight: w, unit: weightUnit, attributes: aiAttributes })
