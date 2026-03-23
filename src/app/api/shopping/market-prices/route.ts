@@ -109,10 +109,7 @@ async function searchWithFallback(storeName: string, originalName: string) {
                 continue;
             }
 
-            let validItems = 0;
-            let exactMallFound = false;
-            let firstUsedName = '';
-            let validPrice = null;
+            let validItemsPriceList: { price: number; name: string }[] = [];
 
             // 필터링 및 단위량(1kg) 단가 환산 (매우 중요)
             for (const item of items) {
@@ -125,30 +122,27 @@ async function searchWithFallback(storeName: string, originalName: string) {
                 // 냉동/가공/기타 부적합 제외
                 if (isProcessedFood(title)) continue; 
                 
-                // 상품명에서 통찰력 있게 중량(kg)을 추출
+                // 상품명에서 중량(kg) 추출
                 const wInKg = extractWeightInKg(title);
-                if (!wInKg) {
-                    // 중량을 유추할 수 없는 상품은 정확한 비교가 불가능하므로 스킵 (신뢰도 유지)
-                    continue;
-                }
+                if (!wInKg) continue;
 
-                // 1kg 단위 표준 단가로 변환
+                // 1kg 단위 표준 단가로 변환 (너무 비정상적인 단가는 파싱 오류로 간주하고 제외: 1kg당 10만원 이상이거나 100원 이하)
                 const normalized1kgPrice = Math.round(price / wInKg);
+                if (normalized1kgPrice < 500 || normalized1kgPrice > 50000) continue;
                 
-                // 통과 (신뢰할 수 있는 정확한 단위 데이터 확보)
-                validItems++;
-                if (validItems === 1) { 
-                    exactMallFound = true;
-                    firstUsedName = title;
-                    validPrice = normalized1kgPrice; // 1kg 기준가 반환!
-                }
+                validItemsPriceList.push({ price: normalized1kgPrice, name: title });
             }
 
-            if (exactMallFound) {
-                logs.push(`[${query}] 적용상품명: "${firstUsedName}" (원가격: ${validPrice}원 / 1kg 환산 적용 완료)`);
-                return { price: validPrice, name: firstUsedName, logs };
+            if (validItemsPriceList.length > 0) {
+                // 이상치 방지를 위해 오름차순 정렬 후 중앙값(대표성 있는 무난한 가격) 사용
+                validItemsPriceList.sort((a, b) => a.price - b.price);
+                const medianIndex = Math.floor(validItemsPriceList.length / 2);
+                const medianItem = validItemsPriceList[medianIndex];
+                
+                logs.push(`[${query}] 1kg 다수 파싱 완료(${validItemsPriceList.length}건). 중앙값 적용: "${medianItem.name}" (원가격: ${medianItem.price}원 / 1kg 환산 적용 완료)`);
+                return { price: medianItem.price, name: medianItem.name, logs };
             } else {
-                logs.push(`[${query}] 필터링 결과 0개. 사유: 냉동/가공품만 존재하거나 중량(kg) 정보가 불명확함.`);
+                logs.push(`[${query}] 필터링 결과 0개. 사유: 유효 중량 부족 또는 터무니없는 단가(파싱 오류 방지).`);
             }
 
         } catch (e: any) {
