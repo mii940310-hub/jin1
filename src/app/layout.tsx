@@ -11,9 +11,32 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export const metadata: Metadata = {
-  title: "슝팜 (Swoong Farm) | 농가 직거래 고랭지 산지직송",
-  description: "고랭지 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼 슝팜(Swoong Farm). 신선도와 가격 투명성을 직접 경험해보세요.",
-  keywords: "슝팜, Swoong Farm, 강원도, 정선, 고랭지, 산지직송, 농가직거래, 신선식품, AI추천가격",
+  title: "슝팜(Shoong Farm) | 산지직송 AI 최저가 보장 농산물 직거래 플랫폼",
+  description: "유통 마진 0원! 강원도 고랭지 신선 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼 슝팜. 투명한 가격과 갓 수확한 신선도를 직접 경험해보세요.",
+  keywords: ["슝팜", "shoong farm", "산지직송", "농가직거래", "강원도", "정선 농산물", "고랭지 배추", "당일수확", "농산물 플랫폼"],
+  openGraph: {
+    title: "슝팜(Shoong Farm) | 프리미엄 산지직송 직거래 플랫폼",
+    description: "유통 과정을 없애 진짜 신선한 당일 수확 농산물을 가장 저렴하게! 슝팜에서 만나보세요.",
+    url: "https://www.shoongfarm.com",
+    siteName: "슝팜(Shoong Farm)",
+    images: [{
+      url: "https://www.shoongfarm.com/hero.jpg", // You can update this to an actual logo later
+      width: 1200,
+      height: 630,
+      alt: "슝팜 산지직송 농산물",
+    }],
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "슝팜(Shoong Farm)",
+    description: "산지직송 AI 최저가 보장 농산물 직거래 플랫폼",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  }
 };
 
 export default function RootLayout({
