@@ -93,7 +93,7 @@ async function searchWithFallback(storeName: string, originalName: string) {
                     'X-Naver-Client-Id': process.env.NAVER_CLIENT_ID || '',
                     'X-Naver-Client-Secret': process.env.NAVER_CLIENT_SECRET || '',
                 },
-                next: { revalidate: 3600 }
+                next: { revalidate: 0 } // 캐시 무효화 (실시간 파싱)
             });
             
             if (!res.ok) {
@@ -163,10 +163,12 @@ export async function GET(request: Request) {
     if (!query) return NextResponse.json({ error: '검색어를 입력하세요.' }, { status: 400 });
 
     const now = Date.now();
-    // 1시간(3600초) 캐시 유지
+    // 테스트 및 실시간 오류 수정을 위해 임시로 메모리 캐시 비활성화
+    /*
     if (memCache[query] && (now - memCache[query].timestamp < 3600 * 1000)) {
         return NextResponse.json(memCache[query].data);
     }
+    */
 
     try {
         const [naverRes, emartRes, gmarketRes] = await Promise.all([
