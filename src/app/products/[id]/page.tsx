@@ -84,8 +84,8 @@ export default function ProductDetailPage() {
         baseTotalPrice = product.price_total;
     } else if (weightType === 'range') {
         baseWeight = product.weight_options?.[0]?.weight || 1;
-        const opt = product.weight_options[selectedOptionIndex];
-        baseTotalPrice = opt.price;
+        // DB의 단일 진실원천인 `price_total`을 기준으로 100% 동기화 (오류 방지)
+        baseTotalPrice = product.price_total;
     } else if (weightType === 'variable') {
         baseWeight = (product.min_weight + product.max_weight) / 2 || 1;
         const avgW = (product.min_weight + product.max_weight) / 2;

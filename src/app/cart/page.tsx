@@ -52,8 +52,9 @@ export default function CartPage() {
             unitLabel = `${product.weight_kg}${product.weight_unit || 'kg'}`;
         } else if (weightType === 'range') {
             const optIndex = meta.selected_option_index ?? 0;
-            const opt = product.weight_options?.[optIndex] || { weight: 0, price: 0 };
-            finalPrice = opt.price + (product.price_fee || Math.round(opt.price * 0.1)) + (product.price_logistics || 3000);
+            const opt = product.weight_options?.[optIndex] || { weight: 1 };
+            const baseWeight = product.weight_options?.[0]?.weight || 1;
+            finalPrice = Math.round(product.price_total * (opt.weight / baseWeight));
             unitLabel = `${opt.weight}kg (세트)`;
         } else if (weightType === 'variable') {
             const avgW = (product.min_weight + product.max_weight) / 2;

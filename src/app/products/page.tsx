@@ -81,11 +81,7 @@ export default function ProductsPage() {
                                                     if (product.weight_type === 'variable') {
                                                         return `${product.price_per_kg.toLocaleString()}원 / kg`;
                                                     } else if (product.weight_type === 'range') {
-                                                        const first = product.weight_options?.[0];
-                                                        if (first) {
-                                                            const p = first.price + (product.price_fee || Math.round(first.price * 0.1)) + 3000;
-                                                            return `${p.toLocaleString()}원~`;
-                                                        }
+                                                        return `${product.price_total.toLocaleString()}원~`;
                                                     }
                                                     return `${product.price_total.toLocaleString()}원`;
                                                 })()}
