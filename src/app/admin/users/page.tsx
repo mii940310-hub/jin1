@@ -13,7 +13,7 @@ export default function UsersManagementPage() {
         fetchData();
     }, []);
 
-    const fetchData = async () => {
+    async function fetchData() {
         setLoading(true);
         // Fetch farms with owner profile data
         const { data: farmsData } = await supabase.from('farms').select('*, owner:profiles(*)');

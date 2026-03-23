@@ -14,7 +14,7 @@ export default function FarmerOrdersPage() {
         fetchOrders();
     }, []);
 
-    const fetchOrders = async () => {
+    async function fetchOrders() {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;

@@ -13,7 +13,7 @@ export default function PlatformFeePage() {
         fetchProducts();
     }, []);
 
-    const fetchProducts = async () => {
+    async function fetchProducts() {
         setLoading(true);
         const { data, error } = await supabase
             .from('products')

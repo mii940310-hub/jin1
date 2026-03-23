@@ -11,7 +11,7 @@ export default function OrdersMonitorPage() {
         fetchOrders();
     }, []);
 
-    const fetchOrders = async () => {
+    async function fetchOrders() {
         setLoading(true);
         // Fetch all orders with their user profiles and full items details
         const { data, error } = await supabase

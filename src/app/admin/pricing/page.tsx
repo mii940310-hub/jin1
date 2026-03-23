@@ -11,7 +11,7 @@ export default function AdminPricingDashboard() {
         fetchData();
     }, []);
 
-    const fetchData = async () => {
+    async function fetchData() {
         setLoading(true);
         let productsData: any[] = [];
         
