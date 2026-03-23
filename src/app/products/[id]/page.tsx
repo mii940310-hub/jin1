@@ -104,10 +104,11 @@ export default function ProductDetailPage() {
         
         if (validPrices.length > 0) {
             const sumPrices = validPrices.reduce((a, b) => a + b, 0);
-            const avgPrice = Math.round(sumPrices / validPrices.length);
+            const avgPrice = Math.round(sumPrices / validPrices.length); // 1kg 기준 평균가
             
-            baseMarketTotal = Math.round((avgPrice * scaleFactor) / 100) * 100;
-            aiTargetPricePreview = Math.round((baseMarketTotal * 0.90) / 100) * 100;
+            // API가 반환한 1kg 기준 가격을 사용자가 선택한 중량(selectedQuantity)만큼 곱하여 비교! (진짜 시장 비교가격)
+            baseMarketTotal = Math.round((avgPrice * selectedQuantity) / 100) * 100;
+            aiTargetPricePreview = Math.round((baseMarketTotal * 0.70) / 100) * 100; // 30% 저렴하게!
         }
     }
 
@@ -154,7 +155,8 @@ export default function ProductDetailPage() {
                                         <div key={idx} style={{ textAlign: 'center', padding: '12px 8px', background: 'white', borderRadius: '12px', border: '1px solid #edf2f7' }}>
                                             <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '4px' }}>{market.name}</div>
                                             <div style={{ fontWeight: 700, color: market.color, fontSize: '1.05rem' }}>
-                                                {market.price ? `${Math.round((market.price * scaleFactor) / 100) * 100}원` : '정보없음'}
+                                                {/* API 반환값은 1kg 기준이므로 선택한 중량(selectedQuantity)을 곱해야 동일 중량 비교가 됨 */}
+                                                {market.price ? `${Math.round((market.price * selectedQuantity) / 100) * 100}원` : '정보없음'}
                                             </div>
                                         </div>
                                     ))}
@@ -184,7 +186,7 @@ export default function ProductDetailPage() {
                                             </div>
                                             {aiTargetPricePreview && (
                                                 <div style={{ background: '#e2e8f0', padding: '12px', borderRadius: '8px', color: '#2d3748', fontSize: '0.9rem', marginBottom: '24px' }}>
-                                                    <strong>💡 AI 추천 데이터:</strong> {aiTargetPricePreview.toLocaleString()}원 (시장 평균 대비 10%↓ 산출치)
+                                                    <strong>💡 AI 추천 데이터:</strong> {aiTargetPricePreview.toLocaleString()}원 (시장 평균 대비 30%↓ 산출치)
                                                 </div>
                                             )}
                                             {savings > 0 && (
@@ -202,7 +204,7 @@ export default function ProductDetailPage() {
                                                     <li><strong>최종 수집 시각:</strong> {new Date().toLocaleDateString()} {new Date().getHours()}:00 기준</li>
                                                 </ul>
                                             </div>
-                                            {/* 투명한 가격 구조 추가 */}
+                                            {/* 투명한 가격 구조 수정 (택배비 명시 및 이름 변경) */}
                                             <div style={{ marginTop: '24px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
                                                 <div style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: '16px', color: '#2d3748' }}>
                                                     투명한 가격 구조 ({selectedQuantity}{product.weight_unit || 'kg'} 기준)
@@ -212,16 +214,23 @@ export default function ProductDetailPage() {
                                                     <span style={{ fontWeight: 700 }}>{(currentTotalPrice - Math.round(currentTotalPrice * 0.1) - (product.price_logistics || 1500)).toLocaleString()}원</span>
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', color: '#4a5568', fontSize: '0.95rem' }}>
-                                                    <span>산지 물류비 (Logistics)</span>
+                                                    <span>포장/산지 작업비 (Packaging)</span>
                                                     <span style={{ fontWeight: 700 }}>{(product.price_logistics || 1500).toLocaleString()}원</span>
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', color: '#4a5568', fontSize: '0.95rem' }}>
                                                     <span>플랫폼 수수료 (Fee)</span>
                                                     <span style={{ fontWeight: 700 }}>{Math.round(currentTotalPrice * 0.1).toLocaleString()}원</span>
                                                 </div>
-                                                <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span style={{ fontWeight: 800, color: '#1a202c' }}>최종 결제 금액</span>
+                                                <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '16px', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontWeight: 800, color: '#1a202c' }}>상품 최종 결제액</span>
                                                     <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a202c' }}>{currentTotalPrice.toLocaleString()}원</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '16px', color: '#e53e3e', fontSize: '1rem', borderBottom: '1px solid #edf2f7' }}>
+                                                    <span style={{ fontWeight: 700 }}>택배 배송비 (주문 결제 시 합산)</span>
+                                                    <span style={{ fontWeight: 800 }}>+ 3,000원</span>
+                                                </div>
+                                                <div style={{ marginTop: '16px', fontSize: '0.85rem', color: '#c53030', fontWeight: 600, textAlign: 'right' }}>
+                                                    ※ 식품 신선도 유지를 위해 도서산간 및 제주 지역은 배송이 불가합니다.
                                                 </div>
                                             </div>
 
@@ -244,7 +253,7 @@ export default function ProductDetailPage() {
                             lineHeight: 1.5
                         }}>
                             "이 상품은 산지 직송 구조로 유통 단계를 줄여<br/>
-                            시장 평균보다 5~10% 저렴하게 제공됩니다"
+                            시장 1kg 평균가 대비 약 30% 저렴하게 제공됩니다"
                         </div>
 
                         {/* 중량 선택 (데이터 영역 연장) */}

@@ -114,7 +114,7 @@ async function searchWithFallback(storeName: string, originalName: string) {
             let firstUsedName = '';
             let validPrice = null;
 
-            // 필터링
+            // 필터링 및 단위량(1kg) 단가 환산 (매우 중요)
             for (const item of items) {
                 const title = item.title.replace(/<\/?[^>]+(>|$)/g, ""); // Remove HTML tags
                 const price = parseInt(item.lprice);
@@ -122,20 +122,30 @@ async function searchWithFallback(storeName: string, originalName: string) {
                 const mallMatches = targetAliases.some(alias => item.mallName.includes(alias));
                 if (!mallMatches && storeName !== '네이버') continue; // 해당 몰 아니면 스킵
 
-                // 냉동/가공 제외
+                // 냉동/가공/기타 부적합 제외
                 if (isProcessedFood(title)) continue; 
                 
-                // 통과
+                // 상품명에서 통찰력 있게 중량(kg)을 추출
+                const wInKg = extractWeightInKg(title);
+                if (!wInKg) {
+                    // 중량을 유추할 수 없는 상품은 정확한 비교가 불가능하므로 스킵 (신뢰도 유지)
+                    continue;
+                }
+
+                // 1kg 단위 표준 단가로 변환
+                const normalized1kgPrice = Math.round(price / wInKg);
+                
+                // 통과 (신뢰할 수 있는 정확한 단위 데이터 확보)
                 validItems++;
                 if (validItems === 1) { 
                     exactMallFound = true;
                     firstUsedName = title;
-                    validPrice = price;
+                    validPrice = normalized1kgPrice; // 1kg 기준가 반환!
                 }
             }
 
             if (exactMallFound) {
-                logs.push(`[${query}] 적용상품명: "${firstUsedName}" (원가격: ${validPrice}원)`);
+                logs.push(`[${query}] 적용상품명: "${firstUsedName}" (원가격: ${validPrice}원 / 1kg 환산 적용 완료)`);
                 return { price: validPrice, name: firstUsedName, logs };
             } else {
                 logs.push(`[${query}] 필터링 결과 0개. 사유: 냉동/가공품만 존재하거나 중량(kg) 정보가 불명확함.`);
@@ -149,11 +159,20 @@ async function searchWithFallback(storeName: string, originalName: string) {
     return { price: null, name: null, logs };
 }
 
+// 메모리 캐시 추가 (개발 환경 및 반복 조회 시 가격 변동 방지)
+const memCache: Record<string, { data: any, timestamp: number }> = {};
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query');
 
     if (!query) return NextResponse.json({ error: '검색어를 입력하세요.' }, { status: 400 });
+
+    const now = Date.now();
+    // 1시간(3600초) 캐시 유지
+    if (memCache[query] && (now - memCache[query].timestamp < 3600 * 1000)) {
+        return NextResponse.json(memCache[query].data);
+    }
 
     try {
         const [naverRes, emartRes, gmarketRes] = await Promise.all([
@@ -172,7 +191,7 @@ export async function GET(request: Request) {
         naverRes.logs.forEach(l => console.log(`  - ${l}`));
         console.log(`====================================================\n`);
 
-        return NextResponse.json({
+        const result = {
             naver: naverRes.price,
             naverName: naverRes.name,
             emart: emartRes.price,
@@ -180,7 +199,10 @@ export async function GET(request: Request) {
             gmarket: gmarketRes.price,
             gmarketName: gmarketRes.name,
             logs: { emart: emartRes.logs, gmarket: gmarketRes.logs, naver: naverRes.logs }
-        });
+        };
+
+        memCache[query] = { data: result, timestamp: now };
+        return NextResponse.json(result);
     } catch (e) {
         return NextResponse.json({ error: 'API 연동 중 오류가 발생했습니다.' }, { status: 500 });
     }
