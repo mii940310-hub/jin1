@@ -103,11 +103,14 @@ export default function ProductDetailPage() {
         validPricesCount = validPrices.length;
         
         if (validPrices.length > 0) {
-            const sumPrices = validPrices.reduce((a, b) => a + b, 0);
-            const avgPrice = Math.round(sumPrices / validPrices.length); // 1kg 기준 평균가
+            // 한 마켓의 비정상적인 폭등가/폭락가를 완벽 방어하기 위해 '평균(Average)' 대신 더욱 안티프래질한 '중앙값/최젓값' 혼합 사용
+            validPrices.sort((a, b) => a - b);
+            let medianPrice = validPrices[0];
+            if (validPrices.length === 3) medianPrice = validPrices[1]; // 3개면 중간값 (가장 이상적)
+            else if (validPrices.length === 2) medianPrice = validPrices[0]; // 2개면 더 저렴한 곳 (고객 친화적/이상치 억제)
             
-            // API가 반환한 1kg 기준 가격을 사용자가 선택한 중량(selectedQuantity)만큼 곱하여 비교! (진짜 시장 비교가격)
-            baseMarketTotal = Math.round((avgPrice * selectedQuantity) / 100) * 100;
+            // API가 반환한 1kg 기준 중앙가격을 사용자가 선택한 중량(selectedQuantity)만큼 곱하여 비교!
+            baseMarketTotal = Math.round((medianPrice * selectedQuantity) / 100) * 100;
             aiTargetPricePreview = Math.round((baseMarketTotal * 0.70) / 100) * 100; // 30% 저렴하게!
         }
     }
@@ -177,7 +180,7 @@ export default function ProductDetailPage() {
                                     return (
                                         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #edf2f7', paddingBottom: '12px' }}>
-                                                <span style={{ fontSize: '0.95rem', color: '#4a5568' }}>{isReferenceOnly ? '시중 참고 가격' : '유효 비교 데이터 평균가 (계산됨)'}</span>
+                                                <span style={{ fontSize: '0.95rem', color: '#4a5568' }}>{isReferenceOnly ? '시중 참고 가격' : '유효 비교 데이터 중앙값 (계산됨)'}</span>
                                                 <span style={{ fontSize: '1.2rem', fontWeight: 600, color: '#718096', textDecoration: 'line-through' }}>{baseMarketTotal!.toLocaleString()}원</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
