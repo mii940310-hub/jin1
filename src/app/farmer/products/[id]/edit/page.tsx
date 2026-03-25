@@ -35,6 +35,11 @@ export default function EditProduct() {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+    const [aiDescriptionData, setAiDescriptionData] = useState<any>(null);
+    const [aiPriceData, setAiPriceData] = useState<any>(null);
+    const [aiSpecsData, setAiSpecsData] = useState<any>(null);
+    const [aiLoading, setAiLoading] = useState({ desc: false, price: false, specs: false });
+
     useEffect(() => {
         const checkUserAndFetchProduct = async () => {
             if (!params?.id) return;
@@ -108,47 +113,46 @@ export default function EditProduct() {
         }
     };
 
-    const fetchAiPriceForAll = async () => {
-        if (!name) return alert('상품명을 먼저 입력해주세요. (예: 정선 아우라지 미백 옥수수)');
-        
-        setLoading(true);
+    const handleGenerateDescription = async () => {
+        setAiLoading(prev => ({ ...prev, desc: true }));
         try {
-            const res = await fetch(`/api/shopping/market-prices?query=${encodeURIComponent(name)}`);
+            const res = await fetch('/api/ai/product-description', {
+                method: 'POST', body: JSON.stringify({ name, category, harvestDate, description })
+            });
             const data = await res.json();
-            const validPrices = [data.naver, data.emart, data.gmarket].filter(p => p !== null);
-            
-            if (validPrices.length > 0) {
-                const minPrice = Math.min(...validPrices);
-                const baseAiPrice = Math.round((minPrice * 0.90) / 100) * 100; // 10% off lowest market price
+            if (!res.ok) throw new Error(data.error);
+            setAiDescriptionData(data);
+            alert("AI 상세 설명초안이 생성되었습니다.");
+        } catch (e: any) { alert(`상세 설명 생성 실패: ${e.message}`); }
+        setAiLoading(prev => ({ ...prev, desc: false }));
+    };
 
-                if (weightType === 'fixed') {
-                    // For fixed, we assume the baseAiPrice is for the fixedWeight
-                    setBasePrice(baseAiPrice);
-                } else if (weightType === 'range') {
-                    // For range, baseAiPrice is for the first option's weight, others scale proportionally
-                    if (weightOptions.length > 0) {
-                        const baseW = weightOptions[0].weight || 1;
-                        const newOptions = weightOptions.map(opt => ({
-                            ...opt,
-                            price: Math.round((baseAiPrice * (opt.weight / baseW)) / 100) * 100
-                        }));
-                        setWeightOptions(newOptions);
-                    }
-                } else if (weightType === 'variable') {
-                    // Variable usually means a typical box (e.g. 10kg)
-                    // We deduce pricePerKg assuming baseAiPrice represents a 10kg box as standard
-                    const typicalBoxWeight = 10;
-                    setPricePerKg(Math.round((baseAiPrice / typicalBoxWeight) / 100) * 100);
-                }
-                alert('AI가 시중 최저가를 분석하여 최적의 경쟁력 있는 가격(-10%)을 추천했습니다.\n추천가를 바탕으로 자유롭게 가격을 수정하실 수 있습니다.');
-            } else {
-                alert('비교할 생물 상품 시장 데이터를 찾을 수 없습니다. 상품명을 조금 더 포괄적으로 변경해보세요.');
-            }
-        } catch (e) {
-            alert('AI 가격 산출 중 오류가 발생했습니다.');
-        } finally {
-            setLoading(false);
-        }
+    const handleRecommendPrice = async () => {
+        setAiLoading(prev => ({ ...prev, price: true }));
+        try {
+            const res = await fetch('/api/ai/price-advisor', {
+                method: 'POST', body: JSON.stringify({ name, weightType, minWeight, maxWeight, fixedWeight, basePrice })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            setAiPriceData(data);
+            alert("AI 판매가 추천안이 생성되었습니다.");
+        } catch (e: any) { alert(`판매가 추천 실패: ${e.message}`); }
+        setAiLoading(prev => ({ ...prev, price: false }));
+    };
+
+    const handleStandardizeSpecs = async () => {
+        setAiLoading(prev => ({ ...prev, specs: true }));
+        try {
+            const res = await fetch('/api/ai/standardize-specs', {
+                method: 'POST', body: JSON.stringify({ name, weightType, minWeight, maxWeight, fixedWeight, weightUnit, description })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            setAiSpecsData(data);
+            alert("규격 표준화 데이터가 생성되었습니다.");
+        } catch (e: any) { alert(`규격 표준화 실패: ${e.message}`); }
+        setAiLoading(prev => ({ ...prev, specs: false }));
     };
 
     const handleRegister = async () => {
@@ -184,6 +188,26 @@ export default function EditProduct() {
             weight_type: weightType,
             weight_unit: weightUnit,
             price_logistics: packagingFee,
+            ai_generated_title: aiDescriptionData?.ai_generated_title || null,
+            ai_generated_summary: aiDescriptionData?.ai_generated_summary || null,
+            ai_generated_features: aiDescriptionData?.ai_generated_features || null,
+            ai_generated_description: aiDescriptionData?.ai_generated_description || null,
+            ai_generated_storage_guide: aiDescriptionData?.ai_generated_storage_guide || null,
+            ai_generated_shipping_guide: aiDescriptionData?.ai_generated_shipping_guide || null,
+            ai_generated_faq: aiDescriptionData?.ai_generated_faq || null,
+            ai_warning_notes: aiDescriptionData?.ai_warning_notes || null,
+            ai_price_recommendation: aiPriceData?.ai_price_recommendation || null,
+            ai_price_range_min: aiPriceData?.ai_price_range_min || null,
+            ai_price_range_max: aiPriceData?.ai_price_range_max || null,
+            ai_price_reason: aiPriceData?.ai_price_reason || null,
+            ai_price_warning: aiPriceData?.ai_price_warning || null,
+            ai_price_breakdown: aiPriceData?.ai_price_breakdown || null,
+            ai_standardized_spec: aiSpecsData?.ai_standardized_spec || null,
+            ai_quantity_guide: aiSpecsData?.ai_quantity_guide || null,
+            ai_household_guide: aiSpecsData?.ai_household_guide || null,
+            ai_packaging_note: aiSpecsData?.ai_packaging_note || null,
+            ai_confusion_warning: aiSpecsData?.ai_confusion_warning || null,
+            ai_applied: !!(aiDescriptionData || aiPriceData || aiSpecsData),
         };
 
         if (weightType === 'fixed') {
@@ -273,16 +297,6 @@ export default function EditProduct() {
                             <Tab active={weightType === 'range'} onClick={() => setWeightType('range')} icon="⚖️" label="구간형 (세트)" sub="감자, 고구마 등" />
                             <Tab active={weightType === 'variable'} onClick={() => setWeightType('variable')} icon="🚛" label="가변형 (실중량)" sub="배추, 무 등" />
                         </div>
-                        
-                        <div style={{ marginBottom: '24px', padding: '16px', background: '#ebf8ff', borderRadius: '12px', border: '1px solid #bee3f8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <h4 style={{ margin: '0 0 4px', color: '#2b6cb0', fontSize: '1.05rem', fontWeight: 700 }}>AI 추천 판매가 확인하기</h4>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#4a5568' }}>AI가 시장 최저가를 분석해 10% 저렴한 경쟁력 있는 최적가를 추천합니다. (권장)</p>
-                            </div>
-                            <button onClick={fetchAiPriceForAll} disabled={loading} style={{ background: '#3182ce', color: 'white', padding: '10px 20px', borderRadius: '8px', border: 'none', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                🤖 AI 가격 산출하기
-                            </button>
-                        </div>
 
                         {weightType === 'fixed' && (
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '16px', alignItems: 'flex-end' }}>
@@ -348,6 +362,29 @@ export default function EditProduct() {
                                 </div>
                             </div>
                         )}
+
+                        <div style={{ marginTop: '24px', display: 'flex', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
+                            <button onClick={handleStandardizeSpecs} disabled={aiLoading.specs} style={aiButtonStyle}>
+                                {aiLoading.specs ? '📦 정리 중...' : '📦 규격 자동 정리'}
+                            </button>
+                            <button onClick={handleRecommendPrice} disabled={aiLoading.price} style={aiButtonStyle}>
+                                {aiLoading.price ? '💡 계산 중...' : '💡 AI 추천가 보기'}
+                            </button>
+                        </div>
+                        {aiSpecsData && (
+                            <div style={aiResultBoxStyle}>
+                                <strong>표준 규격 안내:</strong> {aiSpecsData.ai_standardized_spec}<br/>
+                                <strong>수량 가이드:</strong> {aiSpecsData.ai_quantity_guide}<br/>
+                                <strong>혼동 방지 알림:</strong> <span style={{color: '#d97706'}}>{aiSpecsData.ai_confusion_warning}</span>
+                            </div>
+                        )}
+                        {aiPriceData && (
+                            <div style={aiResultBoxStyle}>
+                                <strong>AI 추천 판매가:</strong> <span style={{color: '#2563eb', fontWeight: 'bold'}}>{Number(aiPriceData.ai_price_recommendation).toLocaleString()}원</span><br/>
+                                <strong>추천 사유:</strong> {aiPriceData.ai_price_reason}<br/>
+                                <strong>원가 분석(추정):</strong> {JSON.stringify(aiPriceData.ai_price_breakdown)}
+                            </div>
+                        )}
                     </Card>
 
                     {/* 사진 및 상세설명 */}
@@ -370,8 +407,34 @@ export default function EditProduct() {
                             </label>
                         </div>
                         <div>
-                            <label style={labelStyle}>상품 설명</label>
-                            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="농산물의 특징이나 농장의 이야기를 들려주세요" style={{ ...inputStyle, minHeight: '150px' }} />
+                            <label style={labelStyle}>상품 설명 (자유 입력용)</label>
+                            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상품의 기초 구성 정보만 대략적으로 적어주시면 AI가 멋지게 완성해드립니다." style={{ ...inputStyle, minHeight: '150px', marginBottom: '12px' }} />
+                            
+                            <button onClick={handleGenerateDescription} disabled={aiLoading.desc} style={{ ...aiButtonStyle, width: '100%', padding: '16px' }}>
+                                {aiLoading.desc ? '🤖 AI가 설명과 가이드를 정리하고 있습니다...' : '🤖 AI로 구매력 높은 상세 페이지 생성하기'}
+                            </button>
+                            
+                            {aiDescriptionData && (
+                                <div style={{ ...aiResultBoxStyle, marginTop: '16px' }}>
+                                    <h4 style={{ color: '#10b981', marginBottom: '12px' }}>✨ AI 생성 결과</h4>
+                                    <strong>추천 타이틀:</strong> {aiDescriptionData.ai_generated_title}<br/>
+                                    <strong>핵심 특징:</strong> {aiDescriptionData.ai_generated_features?.join(', ')}<br/>
+                                    <strong style={{ display: 'block', marginTop: '12px' }}>보관 / 배송 가이드:</strong>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>{aiDescriptionData.ai_generated_storage_guide}</p>
+                                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>{aiDescriptionData.ai_generated_shipping_guide}</p>
+                                    
+                                    <strong style={{ display: 'block', marginTop: '12px' }}>상세 설명 초안:</strong>
+                                    <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', color: '#444', background: 'white', padding: '12px', border: '1px solid #ddd', borderRadius: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                                        {aiDescriptionData.ai_generated_description}
+                                    </p>
+                                    
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                                        <button onClick={() => setDescription(aiDescriptionData.ai_generated_description)} style={{...aiButtonStyle, background: '#10b981', color: 'white'}}>
+                                            본문에 초안 덮어쓰기
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </Card>
 
@@ -417,5 +480,14 @@ const imageUploadStyle: React.CSSProperties = {
 const submitButtonStyle: React.CSSProperties = {
     width: '100%', padding: '20px', background: 'var(--primary)', color: 'white', borderRadius: '16px',
     fontSize: '1.25rem', fontWeight: 800, border: 'none', cursor: 'pointer', marginTop: '20px', boxShadow: '0 8px 16px rgba(26, 77, 46, 0.2)'
+};
+const aiButtonStyle: React.CSSProperties = {
+    padding: '12px 20px', background: 'white', color: '#1e293b', border: '1px solid #cbd5e1', 
+    borderRadius: '8px', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s', flex: 1,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+};
+const aiResultBoxStyle: React.CSSProperties = {
+    background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '8px', 
+    marginTop: '16px', fontSize: '0.95rem', lineHeight: '1.6', color: '#166534'
 };
 

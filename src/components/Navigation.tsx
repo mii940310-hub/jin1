@@ -51,10 +51,7 @@ export default function Navigation() {
             <Link href="/">홈</Link>
             <Link href="/products">상품</Link>
             <Link href="/farmer-page">농가</Link>
-            <a href="#about" onClick={(e) => {
-                e.preventDefault();
-                document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
-            }}>소개</a>
+            <Link href="/about">소개</Link>
 
             <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 8px' }} />
 

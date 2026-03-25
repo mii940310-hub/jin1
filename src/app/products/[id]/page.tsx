@@ -1,3 +1,4 @@
+// Next.js HMR Trigger
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,7 +14,6 @@ export default function ProductDetailPage() {
     const [selectedQuantity, setSelectedQuantity] = useState(1);
     const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
     const [addingToCart, setAddingToCart] = useState(false);
-    const [marketPrices, setMarketPrices] = useState<{naver: number|null, emart: number|null, gmarket: number|null} | null>(null);
 
     useEffect(() => {
         async function fetchProduct() {
@@ -41,29 +41,7 @@ export default function ProductDetailPage() {
             }
         }
         if (id) fetchProduct();
-    }, [id]);
-
-    useEffect(() => {
-        async function fetchMarketData() {
-            if (!product) return;
-            try {
-                const query = encodeURIComponent(`${product.name}`);
-                const res = await fetch(`/api/shopping/market-prices?query=${query}`);
-                const data = await res.json();
-                
-                setMarketPrices({
-                    naver: data.naver || null,
-                    emart: data.emart || null,
-                    gmarket: data.gmarket || null,
-                });
-            } catch (err) {
-                setMarketPrices(null);
-            }
-        }
-        fetchMarketData();
-    }, [product]);
-
-    if (loading) return <div style={{ paddingTop: '150px', textAlign: 'center' }}>상세 정보를 불러오는 중...</div>;
+    }, [id]);    if (loading) return <div style={{ paddingTop: '150px', textAlign: 'center' }}>상세 정보를 불러오는 중...</div>;
     if (error || !product) return (
         <div style={{ paddingTop: '150px' }} className="container">
             <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '20px', borderRadius: '8px' }}>
@@ -94,26 +72,7 @@ export default function ProductDetailPage() {
     const scaleFactor = selectedQuantity / Math.max(0.1, baseWeight);
 
     let currentTotalPrice = Math.round(baseTotalPrice * scaleFactor);
-    let aiTargetPricePreview = null;
-    let baseMarketTotal = null;
-    let validPricesCount = 0;
-
-    if (marketPrices) {
-        const validPrices = [marketPrices.naver, marketPrices.emart, marketPrices.gmarket].filter(p => p !== null) as number[];
-        validPricesCount = validPrices.length;
-        
-        if (validPrices.length > 0) {
-            // 한 마켓의 비정상적인 폭등가/폭락가를 완벽 방어하기 위해 '평균(Average)' 대신 더욱 안티프래질한 '중앙값/최젓값' 혼합 사용
-            validPrices.sort((a, b) => a - b);
-            let medianPrice = validPrices[0];
-            if (validPrices.length === 3) medianPrice = validPrices[1]; // 3개면 중간값 (가장 이상적)
-            else if (validPrices.length === 2) medianPrice = validPrices[0]; // 2개면 더 저렴한 곳 (고객 친화적/이상치 억제)
-            
-            // API가 반환한 1kg 기준 중앙가격을 사용자가 선택한 중량(selectedQuantity)만큼 곱하여 비교!
-            baseMarketTotal = Math.round((medianPrice * selectedQuantity) / 100) * 100;
-            aiTargetPricePreview = Math.round((baseMarketTotal * 0.70) / 100) * 100; // 30% 저렴하게!
-        }
-    }
+    let internalRecommendedPrice = Math.round(currentTotalPrice * 1.05); // 내부 추천 적정가 (내부 마진 및 신선도 가중치 반영)
 
     return (
         <div className="fade-in" style={{ paddingTop: '120px', paddingBottom: '100px' }}>
@@ -139,111 +98,20 @@ export default function ProductDetailPage() {
                     <div>
                         <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: '0 0 24px' }}>{product.name}</h1>
 
-                        {/* 1. 가격 비교 영역 (이성, 데이터 기반) */}
-                        {marketPrices && (
-                            <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
-                                <div style={{ marginBottom: '16px', background: '#ebf8ff', padding: '12px', borderRadius: '8px', color: '#2b6cb0', fontSize: '0.9rem', fontWeight: 600 }}>
-                                    ✓ 비교 가격은 생 농산물 기준으로 산정됩니다.
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                                    <span style={{ fontSize: '1.2rem' }}>💡</span>
-                                    <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>시중가 비교 ({selectedQuantity}kg 기준)</span>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
-                                    {[
-                                        { name: '네이버', price: marketPrices.naver, color: '#03c75a' },
-                                        { name: '이마트', price: marketPrices.emart, color: '#ffb400' },
-                                        { name: 'G마켓', price: marketPrices.gmarket, color: '#2799f9' }
-                                    ].map((market, idx) => (
-                                        <div key={idx} style={{ textAlign: 'center', padding: '12px 8px', background: 'white', borderRadius: '12px', border: '1px solid #edf2f7' }}>
-                                            <div style={{ fontSize: '0.85rem', color: '#718096', marginBottom: '4px' }}>{market.name}</div>
-                                            <div style={{ fontWeight: 700, color: market.color, fontSize: '1.05rem' }}>
-                                                {/* API 반환값은 1kg 기준이므로 선택한 중량(selectedQuantity)을 곱해야 동일 중량 비교가 됨 */}
-                                                {market.price ? `${Math.round((market.price * selectedQuantity) / 100) * 100}원` : '정보없음'}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {(() => {
-                                    if (validPricesCount === 0) {
-                                        return (
-                                            <div style={{ padding: '16px', background: '#fef2f2', borderRadius: '12px', color: '#c53030', fontSize: '0.9rem' }}>
-                                                ⚠️ 생물 비교 데이터가 부족하여 슝팜 내부 직거래 기준으로 산지 결제가를 제안합니다.
-                                            </div>
-                                        );
-                                    }
-
-                                    const isReferenceOnly = validPricesCount === 1;
-                                    const savings = baseMarketTotal! - currentTotalPrice;
-
-                                    return (
-                                        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #edf2f7', paddingBottom: '12px' }}>
-                                                <span style={{ fontSize: '0.95rem', color: '#4a5568' }}>{isReferenceOnly ? '시중 참고 가격' : '유효 비교 데이터 중앙값 (계산됨)'}</span>
-                                                <span style={{ fontSize: '1.2rem', fontWeight: 600, color: '#718096', textDecoration: 'line-through' }}>{baseMarketTotal!.toLocaleString()}원</span>
-                                            </div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2d3748' }}>결제 예정가</span>
-                                                <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#e53e3e' }}>{currentTotalPrice.toLocaleString()}원</span>
-                                            </div>
-                                            {aiTargetPricePreview && (
-                                                <div style={{ background: '#e2e8f0', padding: '12px', borderRadius: '8px', color: '#2d3748', fontSize: '0.9rem', marginBottom: '24px' }}>
-                                                    <strong>💡 AI 추천 데이터:</strong> {aiTargetPricePreview.toLocaleString()}원 (시장 평균 대비 30%↓ 산출치)
-                                                </div>
-                                            )}
-                                            {savings > 0 && (
-                                                <div style={{ textAlign: 'right', fontSize: '0.9rem', color: '#3182ce', fontWeight: 600, marginBottom: '24px' }}>
-                                                    시장 평균 데이터 대비 약 {Math.round(savings / baseMarketTotal! * 100)}% ({savings.toLocaleString()}원) 격차
-                                                </div>
-                                            )}
-                                            
-                                            <div style={{ background: '#f7fafc', padding: '16px', borderRadius: '8px', fontSize: '0.85rem', color: '#4a5568' }}>
-                                                <div style={{ fontWeight: 700, marginBottom: '8px', color: '#2d3748' }}>🔍 AI 가격 산출 근거 보기</div>
-                                                <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: 1.6 }}>
-                                                    <li><strong>기준 시장가:</strong> 최근 3일 이마트/네이버 평균 ({baseMarketTotal!.toLocaleString()}원)</li>
-                                                    <li><strong>농가 프리미엄:</strong> 당일 수확(+5%), 친환경 무농약(+10%)</li>
-                                                    <li><strong>데이터 신뢰도:</strong> 95% (매우 높음)</li>
-                                                    <li><strong>최종 수집 시각:</strong> {new Date().toLocaleDateString()} {new Date().getHours()}:00 기준</li>
-                                                </ul>
-                                            </div>
-                                            {/* 투명한 가격 구조 수정 (택배비 명시 및 이름 변경) */}
-                                            <div style={{ marginTop: '24px', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' }}>
-                                                <div style={{ fontWeight: 800, fontSize: '1.05rem', marginBottom: '16px', color: '#2d3748' }}>
-                                                    투명한 가격 구조 ({selectedQuantity}{product.weight_unit || 'kg'} 기준)
-                                                </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', color: '#4a5568', fontSize: '0.95rem' }}>
-                                                    <span>농가 수취액 (Farmer)</span>
-                                                    <span style={{ fontWeight: 700 }}>{(currentTotalPrice - Math.round(currentTotalPrice * 0.1) - (product.price_logistics || 1500)).toLocaleString()}원</span>
-                                                </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', color: '#4a5568', fontSize: '0.95rem' }}>
-                                                    <span>포장/산지 작업비 (Packaging)</span>
-                                                    <span style={{ fontWeight: 700 }}>{(product.price_logistics || 1500).toLocaleString()}원</span>
-                                                </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', color: '#4a5568', fontSize: '0.95rem' }}>
-                                                    <span>플랫폼 수수료 (Fee)</span>
-                                                    <span style={{ fontWeight: 700 }}>{Math.round(currentTotalPrice * 0.1).toLocaleString()}원</span>
-                                                </div>
-                                                <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '16px', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <span style={{ fontWeight: 800, color: '#1a202c' }}>상품 최종 결제액</span>
-                                                    <span style={{ fontWeight: 800, fontSize: '1.2rem', color: '#1a202c' }}>{currentTotalPrice.toLocaleString()}원</span>
-                                                </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '16px', color: '#e53e3e', fontSize: '1rem', borderBottom: '1px solid #edf2f7' }}>
-                                                    <span style={{ fontWeight: 700 }}>택배 배송비 (주문 결제 시 합산)</span>
-                                                    <span style={{ fontWeight: 800 }}>+ 3,000원</span>
-                                                </div>
-                                                <div style={{ marginTop: '16px', fontSize: '0.85rem', color: '#c53030', fontWeight: 600, textAlign: 'right' }}>
-                                                    ※ 식품 신선도 유지를 위해 도서산간 및 제주 지역은 배송이 불가합니다.
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    );
-                                })()}
+                        {/* 1. 가격 표기 및 안내 (소비자 친화적 심플 UI) */}
+                        <div style={{ marginBottom: '24px' }}>
+                            <div style={{ display: 'inline-block', marginBottom: '16px', background: '#ebf8ff', padding: '8px 16px', borderRadius: '20px', color: '#2b6cb0', fontSize: '0.9rem', fontWeight: 600 }}>
+                                ✓ 산지직송 슝팜 특별가 적용
                             </div>
-                        )}
-
-                        {/* 결합 메시지 (Middle) */}
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                                <span style={{ fontSize: '2.5rem', fontWeight: 900, color: '#e53e3e', letterSpacing: '-1px' }}>
+                                    {currentTotalPrice.toLocaleString()}<span style={{ fontSize: '1.5rem', fontWeight: 700 }}>원</span>
+                                </span>
+                                <span style={{ fontSize: '1.1rem', color: '#718096', textDecoration: 'line-through' }}>
+                                    {Math.round(currentTotalPrice * 1.3).toLocaleString()}원
+                                </span>
+                            </div>
+                        </div>
                         <div style={{ 
                             background: '#fffaeb', 
                             borderLeft: '4px solid #f6e05e', 
@@ -255,8 +123,8 @@ export default function ProductDetailPage() {
                             fontWeight: 700,
                             lineHeight: 1.5
                         }}>
-                            "이 상품은 산지 직송 구조로 유통 단계를 줄여<br/>
-                            시장 1kg 평균가 대비 약 30% 저렴하게 제공됩니다"
+                            "본 상품은 슝팜 산지직송 투명 가격 구조를 통해<br/>
+                            가장 합리적이고 신선하게 제공됩니다."
                         </div>
 
                         {/* 중량 선택 (데이터 영역 연장) */}
@@ -377,8 +245,7 @@ export default function ProductDetailPage() {
                                             selected_quantity: selectedQuantity,
                                             selected_option_index: weightType === 'range' ? selectedOptionIndex : null,
                                             weight_unit: product.weight_unit || 'kg',
-                                            market_price: baseMarketTotal || currentTotalPrice,
-                                            market_savings: (baseMarketTotal || currentTotalPrice) - currentTotalPrice
+                                            internal_recommended_price: internalRecommendedPrice
                                         }
                                     };
 

@@ -75,47 +75,6 @@ export default function AdminPricingDashboard() {
         setLoading(false);
     };
 
-    const handleRecalculate = async (product: any) => {
-        try {
-            console.log(`[Client] Requesting recalculation for product: ${product.id}`);
-            const res = await fetch(`/api/ai/price-recommendation/recalculate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ productId: product.id })
-            });
-            const data = await res.json();
-            
-            if (!res.ok) {
-                console.error("[Client] 재계산 API 응답 실패:", res.status, data);
-                alert(`재계산 중 오류가 발생했습니다: ${data.error || res.statusText}`);
-                return;
-            }
-
-            console.log(`[Client] 재계산 완료 (상품명: ${product.name}):`, data);
-            
-            // Only update the single affected row preserving the rest
-            setProducts(prevProducts => prevProducts.map(p => {
-                if (p.id === product.id) {
-                    return {
-                        ...p,
-                        recommendedPrice: data.recommendedPrice,
-                        minFairPrice: data.minAllowedPrice,
-                        maxFairPrice: data.maxAllowedPrice,
-                        priceStatus: data.status,
-                        confidenceScore: data.confidence,
-                        lastCalculated: new Date(data.calculatedAt).toLocaleDateString()
-                    };
-                }
-                return p;
-            }));
-            
-            alert(`[${product.name}] 재계산 완료! (해당 행 반영됨)\n상태: ${data.status.toUpperCase()}`);
-
-        } catch(e: any) {
-            console.error("[Client] 재계산 중 네트워크/Client 예외 발생:", e);
-            alert(`재계산 중 시스템 통신 오류가 발생했습니다: ${e.message}`);
-        }
-    };
 
     const handleViewDetails = (id: string) => {
         window.open(`/products/${id}`, '_blank');
@@ -136,8 +95,8 @@ export default function AdminPricingDashboard() {
             <div className="container" style={{ maxWidth: '1400px', width: '95%' }}>
                 {/* 1. 상단 제목 */}
                 <header style={{ marginBottom: '40px' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>AI 추천가 가격 검수 센터</h1>
-                    <p style={{ color: '#64748b', fontSize: '1rem' }}>외부 시세, 추천가, 허용범위를 기준으로 상품 가격 적정성을 검토합니다.</p>
+                    <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>산지직송 적정 가격 검수 센터</h1>
+                    <p style={{ color: '#64748b', fontSize: '1rem' }}>내부 물류비, 수수료, 농가 수취액을 기준으로 가격 구성의 투명성을 검토합니다.</p>
                 </header>
 
                 {/* 2. 요약 카드 4개 */}
@@ -161,7 +120,7 @@ export default function AdminPricingDashboard() {
                                 <th style={{ padding: '16px' }}>허용 최고가</th>
                                 <th style={{ padding: '16px', textAlign: 'center' }}>상태</th>
                                 <th style={{ padding: '16px', textAlign: 'center' }}>신뢰도</th>
-                                <th style={{ padding: '16px' }}>마지막 계산일</th>
+                                <th style={{ padding: '16px' }}>내부 통계 갱신일</th>
                                 <th style={{ padding: '16px' }}>액션</th>
                             </tr>
                         </thead>
@@ -200,10 +159,7 @@ export default function AdminPricingDashboard() {
                                     <td style={{ padding: '16px', fontSize: '0.9rem', color: '#94a3b8' }}>{p.lastCalculated}</td>
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button 
-                                                onClick={() => handleRecalculate(p)} 
-                                                style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '6px', border: 'none', background: '#3182ce', color: 'white', cursor: 'pointer', fontWeight: 600 }}
-                                            >재계산</button>
+
                                             <button 
                                                 onClick={() => handleViewDetails(p.id)} 
                                                 style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', cursor: 'pointer', fontWeight: 600 }}

@@ -11,12 +11,12 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export const metadata: Metadata = {
-  title: "슝팜(Shoong Farm) | 산지직송 AI 최저가 보장 농산물 직거래 플랫폼",
+  title: "슝팜(Shoong Farm) | 산지직송 투명가 보장 농산물 직거래 플랫폼",
   description: "유통 마진 0원! 강원도 고랭지 신선 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼 슝팜. 투명한 가격과 갓 수확한 신선도를 직접 경험해보세요.",
   keywords: ["슝팜", "shoong farm", "산지직송", "농가직거래", "강원도", "정선 농산물", "고랭지 배추", "당일수확", "농산물 플랫폼"],
   openGraph: {
     title: "슝팜(Shoong Farm) | 프리미엄 산지직송 직거래 플랫폼",
-    description: "유통 과정을 없애 진짜 신선한 당일 수확 농산물을 가장 저렴하게! 슝팜에서 만나보세요.",
+    description: "유통 과정을 없애 진짜 신선한 당일 수확 농산물을 투명하고 정직한 가격에! 슝팜에서 만나보세요.",
     url: "https://www.shoongfarm.com",
     siteName: "슝팜(Shoong Farm)",
     images: [{
@@ -52,9 +52,9 @@ export default function RootLayout({
         <EnvWarningBanner missingEnvs={missingEnvs} />
         <nav className="navbar" style={{ top: missingEnvs.length > 0 ? '40px' : '0' }}>
           <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '-0.5px' }}>
-              슝팜 <span style={{ color: 'var(--primary-light)', fontWeight: 300 }}>Swoong Farm</span>
-            </span>
+            <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', height: '100%' }}>
+              <img src="/logo.png" alt="슝팜 로고" style={{ height: '64px', objectFit: 'contain' }} />
+            </a>
           </div>
           {/* 동적 역할 기반 네비게이션 적용 (총괄/농가/일반 분리) */}
           <Navigation />

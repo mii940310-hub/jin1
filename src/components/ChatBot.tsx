@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function ChatBot() {
+    const pathname = usePathname();
+    const [productContext, setProductContext] = useState<any>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
         { role: 'assistant', content: '안녕하세요! 슝팜의 AI 상담사 슝이입니다 🥬 무엇을 도와드릴까요?' }
@@ -21,6 +25,22 @@ export default function ChatBot() {
         }
     }, [messages, isOpen]);
 
+    useEffect(() => {
+        const fetchContext = async () => {
+            if (pathname?.startsWith('/products/')) {
+                const parts = pathname.split('/');
+                const id = parts[2];
+                if (id && id !== 'new') {
+                    const { data } = await supabase.from('products').select('name, harvest_date, description, ai_generated_title, ai_price_recommendation, ai_price_reason').eq('id', id).single();
+                    if (data) setProductContext(data);
+                }
+            } else {
+                setProductContext(null);
+            }
+        };
+        fetchContext();
+    }, [pathname]);
+
     const handleSend = async () => {
         if (!input.trim()) return;
 
@@ -34,7 +54,7 @@ export default function ChatBot() {
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: newMessages })
+                body: JSON.stringify({ messages: newMessages, productContext })
             });
 
             const data = await res.json();

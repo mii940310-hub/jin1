@@ -3,13 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function FarmerPage() {
-    const [prices, setPrices] = useState([]);
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        fetch('/api/market').then(res => res.json()).then(setPrices);
-    }, []);
-
     const handleKakaoLogin = async () => {
         setLoading(true);
         const { error } = await supabase.auth.signInWithOAuth({
@@ -47,35 +41,7 @@ export default function FarmerPage() {
                     </div>
                 </div>
 
-                {/* 2. 실시간 시세 섹션 */}
-                <div style={{ background: 'white', padding: '40px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--foreground)' }}>📊 가락시장 실시간 시세</h2>
-                        <span style={{ fontSize: '0.875rem', color: '#166534', fontWeight: 600 }}>● 실시간 업데이트 중</span>
-                    </div>
-                    <div style={{ overflow: 'hidden', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                            <thead style={{ background: 'var(--accent)', color: 'var(--muted)', fontSize: '0.9rem' }}>
-                                <tr>
-                                    <th style={{ padding: '16px' }}>품목</th>
-                                    <th style={{ padding: '16px' }}>규격</th>
-                                    <th style={{ padding: '16px', textAlign: 'right' }}>경락가</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {prices.length > 0 ? prices.map((item: any, i) => (
-                                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = 'var(--accent)'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
-                                        <td style={{ padding: '16px', fontWeight: 500 }}>{item.auclNm || '로딩 중...'}</td>
-                                        <td style={{ padding: '16px', color: 'var(--muted)', fontSize: '0.9rem' }}>{item.stdUnit || '-'}</td>
-                                        <td style={{ padding: '16px', textAlign: 'right', fontWeight: 700, color: '#d97706' }}>{item.avgPrice ? Number(item.avgPrice).toLocaleString() + '원' : '-'}</td>
-                                    </tr>
-                                )) : (
-                                    <tr><td colSpan={3} style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--muted)' }}>시세 정보를 불러오는 중입니다...</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+
             </div>
         </div>
     );
