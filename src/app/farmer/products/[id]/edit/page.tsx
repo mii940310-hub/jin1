@@ -36,9 +36,8 @@ export default function EditProduct() {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     const [aiDescriptionData, setAiDescriptionData] = useState<any>(null);
-    const [aiPriceData, setAiPriceData] = useState<any>(null);
     const [aiSpecsData, setAiSpecsData] = useState<any>(null);
-    const [aiLoading, setAiLoading] = useState({ desc: false, price: false, specs: false });
+    const [aiLoading, setAiLoading] = useState({ desc: false, specs: false });
 
     useEffect(() => {
         const checkUserAndFetchProduct = async () => {
@@ -127,19 +126,7 @@ export default function EditProduct() {
         setAiLoading(prev => ({ ...prev, desc: false }));
     };
 
-    const handleRecommendPrice = async () => {
-        setAiLoading(prev => ({ ...prev, price: true }));
-        try {
-            const res = await fetch('/api/ai/price-advisor', {
-                method: 'POST', body: JSON.stringify({ name, weightType, minWeight, maxWeight, fixedWeight, basePrice })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
-            setAiPriceData(data);
-            alert("AI 판매가 추천안이 생성되었습니다.");
-        } catch (e: any) { alert(`판매가 추천 실패: ${e.message}`); }
-        setAiLoading(prev => ({ ...prev, price: false }));
-    };
+
 
     const handleStandardizeSpecs = async () => {
         setAiLoading(prev => ({ ...prev, specs: true }));
@@ -196,18 +183,12 @@ export default function EditProduct() {
             ai_generated_shipping_guide: aiDescriptionData?.ai_generated_shipping_guide || null,
             ai_generated_faq: aiDescriptionData?.ai_generated_faq || null,
             ai_warning_notes: aiDescriptionData?.ai_warning_notes || null,
-            ai_price_recommendation: aiPriceData?.ai_price_recommendation || null,
-            ai_price_range_min: aiPriceData?.ai_price_range_min || null,
-            ai_price_range_max: aiPriceData?.ai_price_range_max || null,
-            ai_price_reason: aiPriceData?.ai_price_reason || null,
-            ai_price_warning: aiPriceData?.ai_price_warning || null,
-            ai_price_breakdown: aiPriceData?.ai_price_breakdown || null,
             ai_standardized_spec: aiSpecsData?.ai_standardized_spec || null,
             ai_quantity_guide: aiSpecsData?.ai_quantity_guide || null,
             ai_household_guide: aiSpecsData?.ai_household_guide || null,
             ai_packaging_note: aiSpecsData?.ai_packaging_note || null,
             ai_confusion_warning: aiSpecsData?.ai_confusion_warning || null,
-            ai_applied: !!(aiDescriptionData || aiPriceData || aiSpecsData),
+            ai_applied: !!(aiDescriptionData || aiSpecsData),
         };
 
         if (weightType === 'fixed') {
@@ -364,11 +345,8 @@ export default function EditProduct() {
                         )}
 
                         <div style={{ marginTop: '24px', display: 'flex', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                            <button onClick={handleStandardizeSpecs} disabled={aiLoading.specs} style={aiButtonStyle}>
+                            <button onClick={handleStandardizeSpecs} disabled={aiLoading.specs} style={{...aiButtonStyle, width: '100%'}}>
                                 {aiLoading.specs ? '📦 정리 중...' : '📦 규격 자동 정리'}
-                            </button>
-                            <button onClick={handleRecommendPrice} disabled={aiLoading.price} style={aiButtonStyle}>
-                                {aiLoading.price ? '💡 계산 중...' : '💡 AI 추천가 보기'}
                             </button>
                         </div>
                         {aiSpecsData && (
@@ -376,13 +354,6 @@ export default function EditProduct() {
                                 <strong>표준 규격 안내:</strong> {aiSpecsData.ai_standardized_spec}<br/>
                                 <strong>수량 가이드:</strong> {aiSpecsData.ai_quantity_guide}<br/>
                                 <strong>혼동 방지 알림:</strong> <span style={{color: '#d97706'}}>{aiSpecsData.ai_confusion_warning}</span>
-                            </div>
-                        )}
-                        {aiPriceData && (
-                            <div style={aiResultBoxStyle}>
-                                <strong>AI 추천 판매가:</strong> <span style={{color: '#2563eb', fontWeight: 'bold'}}>{Number(aiPriceData.ai_price_recommendation).toLocaleString()}원</span><br/>
-                                <strong>추천 사유:</strong> {aiPriceData.ai_price_reason}<br/>
-                                <strong>원가 분석(추정):</strong> {JSON.stringify(aiPriceData.ai_price_breakdown)}
                             </div>
                         )}
                     </Card>

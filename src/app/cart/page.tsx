@@ -224,12 +224,12 @@ export default function CartPage() {
                                             // 포트원 결제창 호출
                                             const response = await PortOne.requestPayment({
                                                 // Store ID 설정 (포트원 가맹점 관리자 페이지에서 확인)
-                                                storeId: "store-42deeb6f-2ce3-426c-9c76-5993de012228",
+                                                storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID!,
 
                                                 // 채널 키 설정 (포트원 관리자에서 확인)
-                                                channelKey: "channel-key-bdd970ae-e28e-468d-8961-c0300a1fcb8e",
+                                                channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
 
-                                                paymentId: `payment-${crypto.randomUUID()}`,
+                                                paymentId: `payment-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                                                 orderName: items.length === 1 ? items[0].products.name : `${items[0].products.name} 외 ${items.length - 1}건`,
                                                 totalAmount: total + shipping,
                                                 currency: "KRW",
@@ -272,7 +272,7 @@ export default function CartPage() {
                                             }
                                         } catch (error) {
                                             console.error("결제 호출 중 에러:", error);
-                                            alert("결제 창을 불러오는 데 실패했습니다.");
+                                            alert("결제 창을 불러오는 데 실패했습니다. 원인: " + ((error as any)?.message || JSON.stringify(error)));
                                         }
                                     }}
                                 >
