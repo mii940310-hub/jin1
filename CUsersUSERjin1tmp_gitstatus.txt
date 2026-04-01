@@ -1,0 +1,20 @@
+ M src/app/api/payment/verify/route.ts
+?? "C\357\200\272UsersUSERjin1tmp_gitstatus.txt"
+a80a98a refactor: enforce AI pricing constraints & remove AI price UI from products
+09480d2 Refactor: Update AI models to gemini-2.5-flash, add /about page, enhance ChatBot context, and simplify public product UI
+caa84a6 Enhance market price robustness using hybrid Median logic on frontend
+9c59b4d Temporarily disable memCache to ensure instant debug visibility
+87e1eb7 Fix Gmarket absurd price outlier by implementing median sorting
+ad43c74 Add extensive SEO meta tags, sitemap.ts, and robots.ts
+5364497 Remove obsolete eslint option from next.config.ts to suppress warnings
+e049847 Fix Vercel build error by lazy initializing supabaseAdmin
+3d4494e Update AI pricing displays to 30% off exactly
+c9d91a6 Unify all range-weight pricing to scale strictly from price_total
+bd9c5fe Enforce strict 10% platform fee and remove custom manual modification
+73d29cb Fix syntax errors and disable ESLint during Vercel builds
+d4eda4c Completely remove old recommend-price API paths from the codebase
+feac050 Refactor recalculation to isolated API with fallback and error handling
+63a256e Implement full AI Pricing Verification UI
+* main a80a98a refactor: enforce AI pricing constraints & remove AI price UI from products
+ src/app/api/payment/verify/route.ts | 32 +++++++++++++++++++++-----------
+ 1 file changed, 21 insertions(+), 11 deletions(-)

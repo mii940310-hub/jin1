@@ -9,18 +9,24 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req: NextRequest) {
   try {
-    const { paymentId, orderId, amount, items, userId, shippingAddress } = await req.json();
+    const body = await req.json();
+    const { paymentId, orderId, amount, items, userId, shippingAddress } = body;
+
+    console.log('[VERIFY] Step 1 - 수신 파라미터:', { paymentId, amount, userId, itemsCount: items?.length });
 
     if (!paymentId || !amount || !userId) {
+      console.error('[VERIFY] 필수 파라미터 누락:', { paymentId: !!paymentId, amount: !!amount, userId: !!userId });
       return NextResponse.json({ success: false, message: 'Bad request: missing parameters' }, { status: 400 });
     }
 
     // 1. 포트원 결제 검증 (V2 API)
-    // 포트원 시크릿 키는 절대 클라이언트에 노출되면 안 되므로 .env에 저장해서 서버에서만 사용
     const PORTONE_API_SECRET = process.env.PORTONE_API_SECRET;
+    console.log('[VERIFY] Step 2 - API Secret 존재 여부:', !!PORTONE_API_SECRET, '| 앞 20자:', PORTONE_API_SECRET?.slice(0, 20));
     
     // 포트원 V2 결제건 단건 조회 API
-    const paymentResponse = await fetch(`https://api.portone.io/payments/${paymentId}`, {
+    const portoneUrl = `https://api.portone.io/payments/${paymentId}`;
+    console.log('[VERIFY] Step 3 - 포트원 API 호출:', portoneUrl);
+    const paymentResponse = await fetch(portoneUrl, {
       method: "GET",
       headers: {
         "Authorization": `PortOne ${PORTONE_API_SECRET}`,
@@ -28,23 +34,27 @@ export async function POST(req: NextRequest) {
     });
 
     if (!paymentResponse.ok) {
-        console.error("Payment verification request failed:", await paymentResponse.text());
-        return NextResponse.json({ success: false, message: '결제 정보 조회 실패' }, { status: 400 });
+        const errText = await paymentResponse.text();
+        console.error('[VERIFY] 포트원 API 응답 실패:', paymentResponse.status, errText);
+        return NextResponse.json({ success: false, message: `결제 정보 조회 실패 (${paymentResponse.status}): ${errText}` }, { status: 400 });
     }
 
     const paymentData = await paymentResponse.json();
+    console.log('[VERIFY] Step 4 - 포트원 응답 status:', paymentData.status, '| 금액:', paymentData.amount?.total, '| 요청금액:', amount);
 
-    // 2. 결제 상태 및 금액 검증
-    // 포트원 V2의 결제 상태는 status (PAID 등)
+    // 2. 결제 상태 검증
     if (paymentData.status !== "PAID") {
-      return NextResponse.json({ success: false, message: '결제가 승인되지 않았습니다.' }, { status: 400 });
+      console.error('[VERIFY] 결제 미승인 상태:', paymentData.status);
+      return NextResponse.json({ success: false, message: `결제가 승인되지 않았습니다. (status: ${paymentData.status})` }, { status: 400 });
     }
 
-    // 결제된 금액(paymentData.amount.total)과 클라이언트에서 요청한 금액(amount) 비교
-    // (보안을 위해 실제로는 DB의 장바구니/상품 가격을 한 번 더 계산해서 비교하는 것이 가장 안전합니다)
+    // 3. 금액 위변조 검증
     if (paymentData.amount.total !== amount) {
-      return NextResponse.json({ success: false, message: '결제 금액이 위변조되었습니다.' }, { status: 400 });
+      console.error('[VERIFY] 금액 불일치:', { portone: paymentData.amount.total, requested: amount });
+      return NextResponse.json({ success: false, message: `결제 금액이 일치하지 않습니다. (포트원:${paymentData.amount.total} / 요청:${amount})` }, { status: 400 });
     }
+    
+    console.log('[VERIFY] Step 5 - 검증 완료, DB 저장 진행');
 
     // 3. 주문 정보를 Supabase DB에 저장
     const { data: orderHeader, error: orderError } = await supabase
