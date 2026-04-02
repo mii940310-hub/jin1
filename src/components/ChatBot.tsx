@@ -3,17 +3,74 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { Mic, Square } from 'lucide-react';
+
+type SpeechRecognitionConstructor = new () => SpeechRecognition;
+type ProductContext = {
+    ai_generated_title?: string | null;
+    ai_price_reason?: string | null;
+    ai_price_recommendation?: number | null;
+    description?: string | null;
+    harvest_date?: string | null;
+    name?: string | null;
+};
+
+declare global {
+    interface Window {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    }
+
+    interface SpeechRecognition extends EventTarget {
+        continuous: boolean;
+        interimResults: boolean;
+        lang: string;
+        onend: (() => void) | null;
+        onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+        onresult: ((event: SpeechRecognitionEvent) => void) | null;
+        start: () => void;
+        stop: () => void;
+    }
+
+    interface SpeechRecognitionEvent extends Event {
+        results: SpeechRecognitionResultList;
+    }
+
+    interface SpeechRecognitionErrorEvent extends Event {
+        error: string;
+    }
+
+    interface SpeechRecognitionResultList {
+        readonly length: number;
+        [index: number]: SpeechRecognitionResult;
+    }
+
+    interface SpeechRecognitionResult {
+        readonly isFinal: boolean;
+        readonly length: number;
+        [index: number]: SpeechRecognitionAlternative;
+    }
+
+    interface SpeechRecognitionAlternative {
+        readonly confidence: number;
+        readonly transcript: string;
+    }
+}
 
 export default function ChatBot() {
     const pathname = usePathname();
-    const [productContext, setProductContext] = useState<any>(null);
+    const [productContext, setProductContext] = useState<ProductContext | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([
         { role: 'assistant', content: '안녕하세요! 슝팜의 AI 상담사 슝이입니다 🥬 무엇을 도와드릴까요?' }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [speechError, setSpeechError] = useState<string | null>(null);
+    const [isListening, setIsListening] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const speechSupported = typeof window !== 'undefined' && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,6 +81,50 @@ export default function ChatBot() {
             scrollToBottom();
         }
     }, [messages, isOpen]);
+
+    useEffect(() => {
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!Recognition) {
+            return;
+        }
+
+        const recognition = new Recognition();
+        recognition.lang = 'ko-KR';
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        recognition.onresult = (event) => {
+            const transcript = Array.from({ length: event.results.length }, (_, index) => event.results[index][0]?.transcript || '')
+                .join('')
+                .trim();
+
+            setInput(transcript);
+            setSpeechError(null);
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === 'not-allowed') {
+                setSpeechError('마이크 권한이 차단되어 있습니다. 브라우저 권한을 확인해주세요.');
+            } else if (event.error === 'no-speech') {
+                setSpeechError('음성이 감지되지 않았습니다. 다시 말씀해주세요.');
+            } else {
+                setSpeechError('음성 입력을 처리하지 못했습니다. 다시 시도해주세요.');
+            }
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+
+        return () => {
+            recognition.stop();
+            recognitionRef.current = null;
+        };
+    }, []);
 
     useEffect(() => {
         const fetchContext = async () => {
@@ -68,7 +169,7 @@ export default function ChatBot() {
             } else {
                 setMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다, 잠시 후 다시 시도해주세요.' }]);
             }
-        } catch (error) {
+        } catch {
             setMessages(prev => [...prev, { role: 'assistant', content: '네트워크 오류가 발생했습니다 😅' }]);
         }
         setLoading(false);
@@ -78,6 +179,23 @@ export default function ChatBot() {
         if (e.key === 'Enter') {
             handleSend();
         }
+    };
+
+    const toggleVoiceInput = () => {
+        if (!recognitionRef.current) {
+            setSpeechError('이 브라우저는 음성 입력을 지원하지 않습니다.');
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+            return;
+        }
+
+        setSpeechError(null);
+        setIsListening(true);
+        recognitionRef.current.start();
     };
 
     return (
@@ -154,7 +272,23 @@ export default function ChatBot() {
                     </div>
 
                     {/* Input Area */}
-                    <div style={{ padding: '16px', background: 'white', borderTop: '1px solid var(--border)', display: 'flex', gap: '8px' }}>
+                    <div style={{ padding: '16px', background: 'white', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {speechError && (
+                            <div style={{ color: '#b91c1c', fontSize: '0.85rem', lineHeight: 1.4 }}>
+                                {speechError}
+                            </div>
+                        )}
+                        {!speechSupported && (
+                            <div style={{ color: 'var(--muted)', fontSize: '0.8rem', lineHeight: 1.4 }}>
+                                음성 입력은 Chrome 계열 브라우저에서 가장 안정적으로 동작합니다.
+                            </div>
+                        )}
+                        {isListening && (
+                            <div style={{ color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                듣고 있습니다. 말씀하신 내용이 입력창에 들어갑니다.
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
                         <input
                             type="text"
                             value={input}
@@ -165,12 +299,34 @@ export default function ChatBot() {
                             style={{ flex: 1, padding: '12px', borderRadius: '24px', border: '1px solid var(--border)', outline: 'none', background: '#f1f5f9' }}
                         />
                         <button
+                            type="button"
+                            onClick={toggleVoiceInput}
+                            disabled={!speechSupported || loading}
+                            title={isListening ? '음성 입력 중지' : '음성 입력 시작'}
+                            style={{
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '50%',
+                                background: isListening ? '#fee2e2' : '#ecfdf5',
+                                color: isListening ? '#b91c1c' : '#047857',
+                                border: '1px solid ' + (isListening ? '#fecaca' : '#a7f3d0'),
+                                cursor: !speechSupported || loading ? 'not-allowed' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: !speechSupported || loading ? 0.5 : 1
+                            }}
+                        >
+                            {isListening ? <Square size={18} /> : <Mic size={18} />}
+                        </button>
+                        <button
                             onClick={handleSend}
                             disabled={loading}
                             style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                         </button>
+                        </div>
                     </div>
                 </div>
             )}

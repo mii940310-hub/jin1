@@ -5,12 +5,43 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as PortOne from '@portone/browser-sdk/v2';
+import type { User } from '@supabase/supabase-js';
+
+const portoneStoreId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+const portoneChannelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
+
+type CartItemProduct = {
+    category?: string | null;
+    image_url?: string | null;
+    name: string;
+    price_logistics?: number | null;
+    price_per_kg?: number | null;
+    price_total: number;
+    weight_kg?: number | null;
+    weight_options?: Array<{ weight: number }> | null;
+    weight_type?: 'fixed' | 'range' | 'variable' | null;
+    weight_unit?: string | null;
+    min_weight?: number | null;
+    max_weight?: number | null;
+};
+
+type CartItemMetadata = {
+    ai_discount?: number;
+    selected_option_index?: number;
+    weight_type?: 'fixed' | 'range' | 'variable';
+};
+
+type CartItem = {
+    id: string;
+    metadata?: CartItemMetadata | null;
+    products: CartItemProduct;
+};
 
 export default function CartPage() {
     const router = useRouter();
-    const [items, setItems] = useState<any[]>([]);
+    const [items, setItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [isRemoteArea, setIsRemoteArea] = useState(false);
 
     useEffect(() => {
@@ -26,7 +57,7 @@ export default function CartPage() {
                         .from('cart_items')
                         .select('*, products(*)')
                         .eq('cart_id', cart.id);
-                    setItems(cartItems || []);
+                    setItems((cartItems || []) as CartItem[]);
                 }
             }
             setLoading(false);
@@ -220,14 +251,19 @@ export default function CartPage() {
                                             return;
                                         }
 
+                                        if (!portoneStoreId || !portoneChannelKey) {
+                                            alert("결제 설정이 아직 완료되지 않았습니다. 관리자에게 PortOne Store ID와 Channel Key 설정을 요청해주세요.");
+                                            return;
+                                        }
+
                                         try {
                                             // 포트원 결제창 호출
                                             const response = await PortOne.requestPayment({
                                                 // Store ID 설정 (포트원 가맹점 관리자 페이지에서 확인)
-                                                storeId: process.env.NEXT_PUBLIC_PORTONE_STORE_ID!,
+                                                storeId: portoneStoreId,
 
                                                 // 채널 키 설정 (포트원 관리자에서 확인)
-                                                channelKey: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY!,
+                                                channelKey: portoneChannelKey,
 
                                                 paymentId: `payment-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                                                 orderName: items.length === 1 ? items[0].products.name : `${items[0].products.name} 외 ${items.length - 1}건`,
@@ -270,9 +306,10 @@ export default function CartPage() {
                                                     alert("결제는 성공했으나 주문 처리 중 에러가 발생했습니다: " + verifyData.message);
                                                 }
                                             }
-                                        } catch (error) {
+                                        } catch (error: unknown) {
                                             console.error("결제 호출 중 에러:", error);
-                                            alert("결제 창을 불러오는 데 실패했습니다. 원인: " + ((error as any)?.message || JSON.stringify(error)));
+                                            const message = error instanceof Error ? error.message : JSON.stringify(error);
+                                            alert("결제 창을 불러오는 데 실패했습니다. 원인: " + message);
                                         }
                                     }}
                                 >
