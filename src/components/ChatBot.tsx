@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 export default function ChatBot() {
     const pathname = usePathname();
@@ -27,6 +27,11 @@ export default function ChatBot() {
 
     useEffect(() => {
         const fetchContext = async () => {
+            if (!isSupabaseConfigured) {
+                setProductContext(null);
+                return;
+            }
+
             if (pathname?.startsWith('/products/')) {
                 const parts = pathname.split('/');
                 const id = parts[2];

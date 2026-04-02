@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -10,6 +10,11 @@ export default function Navigation() {
     const pathname = usePathname();
 
     useEffect(() => {
+        if (!isSupabaseConfigured) {
+            setUserRole('guest');
+            return;
+        }
+
         const checkUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             
@@ -33,7 +38,7 @@ export default function Navigation() {
         };
         checkUser();
 
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
             if (session?.user) {
                 checkUser();
             } else {
@@ -88,6 +93,7 @@ export default function Navigation() {
             ) : (
                 <button 
                     onClick={async () => {
+                        if (!isSupabaseConfigured) return;
                         await supabase.auth.signOut();
                         window.location.href = '/';
                     }} 

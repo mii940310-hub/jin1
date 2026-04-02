@@ -18,7 +18,10 @@ if (!isValidUrl(supabaseUrl) || !supabaseAnonKey || supabaseUrl.includes('your_'
     console.warn('⚠️ Supabase URL or Anon Key is missing or invalid. Please check your .env.local file.');
 }
 
+export const isSupabaseConfigured =
+    isValidUrl(supabaseUrl) && Boolean(supabaseAnonKey) && !supabaseUrl?.includes('your_');
+
 // Ensure the client is only initialized if the URL is valid
-export const supabase = isValidUrl(supabaseUrl) && supabaseAnonKey && !supabaseUrl.includes('your_')
+export const supabase = isSupabaseConfigured
     ? createClient(supabaseUrl, supabaseAnonKey)
     : (null as any); // Type cast to prevent breaks, but operations will fail gracefully
