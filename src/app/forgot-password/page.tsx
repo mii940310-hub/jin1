@@ -1,8 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -15,10 +15,8 @@ export default function ForgotPasswordPage() {
         setMsg({ type: '', text: '' });
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/auth-callback`,
+            redirectTo: `${window.location.origin}/auth`,
         });
-
-
 
         if (error) {
             setMsg({ type: 'error', text: `전송 실패: ${error.message}` });
@@ -26,7 +24,7 @@ export default function ForgotPasswordPage() {
             return;
         }
 
-        setMsg({ type: 'success', text: "비밀번호 재설정 메일을 보냈어요. 메일함을 확인하세요!" });
+        setMsg({ type: 'success', text: '비밀번호 재설정 메일을 보냈어요. 메일함을 확인해 주세요.' });
         setLoading(false);
     };
 
@@ -36,7 +34,7 @@ export default function ForgotPasswordPage() {
                 <div style={{ background: 'white', padding: '48px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
                     <h1 style={{ fontSize: '2rem', textAlign: 'center', marginBottom: '8px' }}>비밀번호 찾기</h1>
                     <p style={{ textAlign: 'center', color: 'var(--muted)', marginBottom: '32px' }}>
-                        가입하신 이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.
+                        가입한 이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.
                     </p>
 
                     {msg.text && (
@@ -46,7 +44,7 @@ export default function ForgotPasswordPage() {
                             marginBottom: '20px',
                             fontSize: '0.9rem',
                             background: msg.type === 'error' ? '#fee2e2' : '#dcfce7',
-                            color: msg.type === 'error' ? '#b91c1c' : '#166534'
+                            color: msg.type === 'error' ? '#b91c1c' : '#166534',
                         }}>
                             {msg.text}
                         </div>

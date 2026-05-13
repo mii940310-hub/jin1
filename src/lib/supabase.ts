@@ -5,9 +5,11 @@ const supabasePublicKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Check if variables are valid URLs before creating client
 const isValidUrl = (url: string | undefined): url is string => {
-    if (!url) return false;
+    if (!url) {
+        return false;
+    }
+
     try {
         new URL(url);
         return true;
@@ -17,13 +19,27 @@ const isValidUrl = (url: string | undefined): url is string => {
 };
 
 if (!isValidUrl(supabaseUrl) || !supabasePublicKey || supabaseUrl.includes('your_')) {
-    console.warn('⚠️ Supabase URL or public key is missing or invalid. Please check your .env.local file.');
+    console.warn('Supabase URL or public key is missing or invalid. Please check your .env.local file.');
 }
 
 export const isSupabaseConfigured =
     isValidUrl(supabaseUrl) && Boolean(supabasePublicKey) && !supabaseUrl?.includes('your_');
 
-// Ensure the client is only initialized if the URL is valid
-export const supabase = isSupabaseConfigured
-    ? createClient(supabaseUrl, supabasePublicKey)
-    : (null as any); // Type cast to prevent breaks, but operations will fail gracefully
+function createConfiguredSupabaseClient() {
+    return createClient(supabaseUrl!, supabasePublicKey!);
+}
+
+type SupabaseClientInstance = ReturnType<typeof createConfiguredSupabaseClient>;
+
+const fallbackClient = new Proxy(
+    {},
+    {
+        get() {
+            throw new Error('Supabase is not configured. Please check your environment variables.');
+        },
+    },
+) as SupabaseClientInstance;
+
+export const supabase: SupabaseClientInstance = isSupabaseConfigured
+    ? createConfiguredSupabaseClient()
+    : fallbackClient;

@@ -1,142 +1,227 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// 일반 anon 키 대신 서버 전용 service role 키를 사용하여 RLS(보안 규칙) 우회
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+type VerifyRequestBody = {
+  amount?: number;
+  items?: Array<{
+    quantity?: number;
+    metadata?: {
+      ai_discount?: number;
+      selected_option_index?: number;
+      weight_type?: "fixed" | "range" | "variable";
+    } | null;
+    products?: {
+      id: string;
+      price_logistics?: number | null;
+      price_per_kg?: number | null;
+      price_total: number;
+      weight_options?: Array<{ weight: number }> | null;
+      weight_type?: "fixed" | "range" | "variable" | null;
+      min_weight?: number | null;
+      max_weight?: number | null;
+    };
+  }>;
+  orderId?: string;
+  paymentId?: string;
+  shippingAddress?: string;
+  userId?: string;
+};
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+function buildError(message: string, status = 400) {
+  return NextResponse.json({ success: false, message }, { status });
+}
+
+function getServerSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl) {
+    return {
+      error: buildError("서버 설정 오류: NEXT_PUBLIC_SUPABASE_URL이 없습니다.", 500),
+    };
+  }
+
+  if (!serviceRoleKey) {
+    return {
+      error: buildError(
+        "서버 설정 오류: SUPABASE_SERVICE_ROLE_KEY가 없습니다. 주문 저장을 위해 필요합니다.",
+        500,
+      ),
+    };
+  }
+
+  return {
+    client: createClient(supabaseUrl, serviceRoleKey),
+  };
+}
+
+function calculateItemPricing(item: NonNullable<VerifyRequestBody["items"]>[number]) {
+  const product = item.products;
+  const metadata = item.metadata || {};
+
+  if (!product) {
+    throw new Error("주문 상품 정보가 누락되었습니다.");
+  }
+
+  const weightType = metadata.weight_type || product.weight_type || "fixed";
+
+  let finalPrice = 0;
+  let unitPrice = product.price_total;
+
+  if (weightType === "fixed") {
+    finalPrice = product.price_total;
+  } else if (weightType === "range") {
+    const optionIndex = metadata.selected_option_index ?? 0;
+    const option = product.weight_options?.[optionIndex] || { weight: 1 };
+    const baseWeight = product.weight_options?.[0]?.weight || 1;
+    finalPrice = Math.round(product.price_total * (option.weight / baseWeight));
+    unitPrice = finalPrice;
+  } else {
+    const minWeight = product.min_weight ?? 0;
+    const maxWeight = product.max_weight ?? 0;
+    const pricePerKg = product.price_per_kg ?? 0;
+    const avgWeight = (minWeight + maxWeight) / 2;
+    const farmPrice = Math.round(avgWeight * pricePerKg);
+    finalPrice = farmPrice + Math.round(farmPrice * 0.1) + (product.price_logistics || 3000);
+    unitPrice = pricePerKg;
+  }
+
+  finalPrice = Math.max(0, finalPrice - (metadata.ai_discount || 0));
+
+  return {
+    finalPrice,
+    productId: product.id,
+    quantity: item.quantity ?? 1,
+    unitPrice,
+  };
+}
+
+function toUserMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("row-level security policy")) {
+    return "주문 저장이 Supabase 권한 설정(RLS)에 의해 차단되었습니다. SUPABASE_SERVICE_ROLE_KEY를 .env.local에 추가해야 합니다.";
+  }
+
+  return `서버 에러: ${message}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { paymentId, orderId, amount, items, userId, shippingAddress } = body;
+    const body = (await req.json()) as VerifyRequestBody;
+    const { amount, items, paymentId, shippingAddress, userId } = body;
 
-    console.log('[VERIFY] Step 1 - 수신 파라미터:', { paymentId, amount, userId, itemsCount: items?.length });
+    console.log("[VERIFY] Request received:", {
+      amount,
+      hasItems: Array.isArray(items),
+      itemsCount: items?.length ?? 0,
+      paymentId,
+      userId,
+    });
 
-    if (!paymentId || !amount || !userId) {
-      console.error('[VERIFY] 필수 파라미터 누락:', { paymentId: !!paymentId, amount: !!amount, userId: !!userId });
-      return NextResponse.json({ success: false, message: 'Bad request: missing parameters' }, { status: 400 });
+    if (!paymentId || !amount || !userId || !items?.length) {
+      return buildError("잘못된 요청입니다. 결제 검증에 필요한 값이 누락되었습니다.");
     }
 
-    // 1. 포트원 결제 검증 (V2 API)
-    const PORTONE_API_SECRET = process.env.PORTONE_API_SECRET;
-    console.log('[VERIFY] Step 2 - API Secret 존재 여부:', !!PORTONE_API_SECRET, '| 앞 20자:', PORTONE_API_SECRET?.slice(0, 20));
-    
-    // 포트원 V2 결제건 단건 조회 API
+    const portoneApiSecret = process.env.PORTONE_API_SECRET;
+    if (!portoneApiSecret) {
+      return buildError("서버 설정 오류: PORTONE_API_SECRET이 없습니다.", 500);
+    }
+
     const portoneUrl = `https://api.portone.io/payments/${paymentId}`;
-    console.log('[VERIFY] Step 3 - 포트원 API 호출:', portoneUrl);
     const paymentResponse = await fetch(portoneUrl, {
       method: "GET",
       headers: {
-        "Authorization": `PortOne ${PORTONE_API_SECRET}`,
+        Authorization: `PortOne ${portoneApiSecret}`,
       },
     });
 
     if (!paymentResponse.ok) {
-        const errText = await paymentResponse.text();
-        console.error('[VERIFY] 포트원 API 응답 실패:', paymentResponse.status, errText);
-        return NextResponse.json({ success: false, message: `결제 정보 조회 실패 (${paymentResponse.status}): ${errText}` }, { status: 400 });
+      const errorText = await paymentResponse.text();
+      console.error("[VERIFY] PortOne payment lookup failed:", paymentResponse.status, errorText);
+      return buildError(`결제 정보 조회 실패 (${paymentResponse.status}): ${errorText}`);
     }
 
     const paymentData = await paymentResponse.json();
-    console.log('[VERIFY] Step 4 - 포트원 응답 status:', paymentData.status, '| 금액:', paymentData.amount?.total, '| 요청금액:', amount);
+    console.log("[VERIFY] PortOne payment status:", paymentData.status);
 
-    // 2. 결제 상태 검증
     if (paymentData.status !== "PAID") {
-      console.error('[VERIFY] 결제 미승인 상태:', paymentData.status);
-      return NextResponse.json({ success: false, message: `결제가 승인되지 않았습니다. (status: ${paymentData.status})` }, { status: 400 });
+      return buildError(`결제가 승인되지 않았습니다. (status: ${paymentData.status})`);
     }
 
-    // 3. 금액 위변조 검증
-    if (paymentData.amount.total !== amount) {
-      console.error('[VERIFY] 금액 불일치:', { portone: paymentData.amount.total, requested: amount });
-      return NextResponse.json({ success: false, message: `결제 금액이 일치하지 않습니다. (포트원:${paymentData.amount.total} / 요청:${amount})` }, { status: 400 });
+    if (paymentData.amount?.total !== amount) {
+      return buildError(
+        `결제 금액이 일치하지 않습니다. (포트원:${paymentData.amount?.total} / 요청:${amount})`,
+      );
     }
-    
-    console.log('[VERIFY] Step 5 - 검증 완료, DB 저장 진행');
 
-    // 3. 주문 정보를 Supabase DB에 저장
+    const { client: supabase, error } = getServerSupabaseClient();
+    if (error) {
+      return error;
+    }
+
     const { data: orderHeader, error: orderError } = await supabase
-      .from('orders')
+      .from("orders")
       .insert({
-        user_id: userId,
-        total_amount: amount,
-        status: 'paid', // 결제 완료 상태
-        shipping_address: shippingAddress || '배송지 정보 없음', // 추가 개발 필요
         payment_id: paymentId,
+        shipping_address: shippingAddress || "배송지 정보 없음",
+        status: "paid",
+        total_amount: amount,
+        user_id: userId,
       })
       .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      throw new Error(orderError.message);
+    }
 
-    // 4. 주문 상세 상품(Order Items) 데이터를 배열 형태로 준비해서 삽입
-    const orderItemsData = items.map((item: any) => {
-      const product = item.products;
-      const meta = item.metadata || {};
-      const weightType = meta.weight_type || product.weight_type || 'fixed';
-      
-      let finalPrice = 0;
-      let unitPrice = product.price_total;
-
-      if (weightType === 'fixed') {
-          finalPrice = product.price_total;
-      } else if (weightType === 'range') {
-          const optIndex = meta.selected_option_index ?? 0;
-          const opt = product.weight_options?.[optIndex] || { weight: 1 };
-          const baseWeight = product.weight_options?.[0]?.weight || 1;
-          finalPrice = Math.round(product.price_total * (opt.weight / baseWeight));
-          unitPrice = finalPrice;
-      } else if (weightType === 'variable') {
-          const avgW = (product.min_weight + product.max_weight) / 2;
-          const farmPrice = Math.round(avgW * product.price_per_kg);
-          finalPrice = farmPrice + Math.round(farmPrice * 0.1) + (product.price_logistics || 3000);
-          unitPrice = product.price_per_kg; // For variable, unit price is per kg
-      }
-
-      const aiDiscount = meta.ai_discount || 0;
-      finalPrice = Math.max(0, finalPrice - aiDiscount);
+    const orderItemsData = items.map((item) => {
+      const pricing = calculateItemPricing(item);
 
       return {
+        metadata: item.metadata || {},
         order_id: orderHeader.id,
-        product_id: item.products.id,
-        quantity: item.quantity,
-        unit_price: unitPrice,
-        total_price: finalPrice,
-        metadata: meta
+        product_id: pricing.productId,
+        quantity: pricing.quantity,
+        total_price: pricing.finalPrice,
+        unit_price: pricing.unitPrice,
       };
     });
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItemsData);
-
-    if (itemsError) throw itemsError;
-
-    // 5. 장바구니 비우기
-    // 해당 사용자의 장바구니를 찾아 장바구니 안의 아이템들을 삭제합니다.
-    const { data: cart } = await supabase
-      .from('carts')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
-
-    if (cart) {
-      await supabase
-        .from('cart_items')
-        .delete()
-        .eq('cart_id', cart.id);
+    const { error: itemsError } = await supabase.from("order_items").insert(orderItemsData);
+    if (itemsError) {
+      throw new Error(itemsError.message);
     }
 
-    // 모든 과정 완료
-    return NextResponse.json({ success: true, message: '결제 검증 및 주문 처리가 완료되었습니다.', orderId: orderHeader.id });
+    const { data: cart, error: cartError } = await supabase
+      .from("carts")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
 
-  } catch (error: any) {
-    console.error('Payment verification error:', error);
-    return NextResponse.json({ success: false, message: '서버 에러: ' + error.message }, { status: 500 });
+    if (cartError) {
+      throw new Error(cartError.message);
+    }
+
+    if (cart) {
+      const { error: clearCartError } = await supabase
+        .from("cart_items")
+        .delete()
+        .eq("cart_id", cart.id);
+
+      if (clearCartError) {
+        throw new Error(clearCartError.message);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "결제 검증 및 주문 처리가 완료되었습니다.",
+      orderId: orderHeader.id,
+    });
+  } catch (error) {
+    console.error("Payment verification error:", error);
+    return buildError(toUserMessage(error), 500);
   }
 }

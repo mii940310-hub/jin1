@@ -1,37 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, type CSSProperties, type FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+
+type MessageState = {
+    text: string;
+    type: '' | 'error' | 'success';
+};
 
 function LoginContent() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [msg, setMsg] = useState({ type: '', text: '' });
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirectUrl = searchParams.get('redirect') || '/';
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState<MessageState>({ type: '', text: '' });
+
+    const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
         setLoading(true);
-        setMsg({ type: '', text: '' });
+        setMessage({ type: '', text: '' });
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-            });
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-            if (error) throw error;
+            if (error) {
+                throw error;
+            }
 
-            setMsg({ type: 'success', text: '로그인 성공! 이동 중...' });
+            setMessage({ type: 'success', text: '로그인되었습니다. 이동 중입니다...' });
             router.push(redirectUrl);
-        } catch (err: any) {
-            setMsg({ type: 'error', text: err.message });
+        } catch (caughtError) {
+            const text = caughtError instanceof Error ? caughtError.message : '로그인 중 오류가 발생했습니다.';
+            setMessage({ type: 'error', text });
         } finally {
             setLoading(false);
         }
@@ -39,120 +44,107 @@ function LoginContent() {
 
     const handleSignUp = async () => {
         setLoading(true);
+        setMessage({ type: '', text: '' });
+
         try {
-            const { error } = await supabase.auth.signUp({
-                email,
-                password,
-            });
-            if (error) throw error;
-            setMsg({ type: 'success', text: '인증 메일을 확인해주세요!' });
-        } catch (err: any) {
-            setMsg({ type: 'error', text: err.message });
+            const { error } = await supabase.auth.signUp({ email, password });
+
+            if (error) {
+                throw error;
+            }
+
+            setMessage({ type: 'success', text: '가입 확인 메일을 보냈습니다. 메일을 확인해 주세요.' });
+        } catch (caughtError) {
+            const text = caughtError instanceof Error ? caughtError.message : '회원가입 요청 중 오류가 발생했습니다.';
+            setMessage({ type: 'error', text });
         } finally {
             setLoading(false);
         }
     };
 
+    const handleKakaoLogin = async () => {
+        setLoading(true);
+        setMessage({ type: '', text: '' });
+
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'kakao',
+            options: {
+                redirectTo: `${window.location.origin}${redirectUrl}`,
+                scopes: 'profile_nickname',
+            },
+        });
+
+        if (error) {
+            setMessage({ type: 'error', text: error.message });
+            setLoading(false);
+        }
+    };
+
     return (
-        <div className="fade-in" style={{ paddingTop: '120px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-            <div className="container" style={{ maxWidth: '450px' }}>
-                <div style={{ background: 'white', padding: '48px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
-                    <h1 style={{ fontSize: '2rem', textAlign: 'center', marginBottom: '8px' }}>반갑습니다!</h1>
-                    <p style={{ textAlign: 'center', color: 'var(--muted)', marginBottom: '32px' }}>Highland Fresh 계정으로 시작하세요.</p>
+        <div className="fade-in" style={pageStyle}>
+            <div className="container" style={{ maxWidth: 450 }}>
+                <section style={cardStyle}>
+                    <h1 style={{ fontSize: '2rem', marginBottom: 8, textAlign: 'center' }}>로그인</h1>
+                    <p style={{ color: 'var(--muted)', marginBottom: 32, textAlign: 'center' }}>
+                        계정으로 서비스를 시작해 보세요.
+                    </p>
 
-                    {msg.text && (
-                        <div style={{
-                            padding: '12px',
-                            borderRadius: '8px',
-                            marginBottom: '20px',
-                            fontSize: '0.9rem',
-                            background: msg.type === 'error' ? '#fee2e2' : '#dcfce7',
-                            color: msg.type === 'error' ? '#b91c1c' : '#166534'
-                        }}>
-                            {msg.text}
+                    {message.text ? (
+                        <div
+                            style={{
+                                ...messageBoxStyle,
+                                background: message.type === 'error' ? '#fee2e2' : '#dcfce7',
+                                color: message.type === 'error' ? '#b91c1c' : '#166534',
+                            }}
+                        >
+                            {message.text}
                         </div>
-                    )}
+                    ) : null}
 
-                    <form onSubmit={handleLogin} style={{ display: 'grid', gap: '16px' }}>
+                    <form onSubmit={handleLogin} style={{ display: 'grid', gap: 16 }}>
                         <input
-                            type="email"
+                            onChange={(event) => setEmail(event.target.value)}
                             placeholder="이메일 주소"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
                             required
-                            style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                            style={inputStyle}
+                            type="email"
+                            value={email}
                         />
                         <input
-                            type="password"
+                            onChange={(event) => setPassword(event.target.value)}
                             placeholder="비밀번호"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
                             required
-                            style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                            style={inputStyle}
+                            type="password"
+                            value={password}
                         />
 
-                        <button className="btn-primary" disabled={loading} style={{ padding: '14px', marginTop: '12px' }}>
-                            {loading ? '처리 중...' : '로그인'}
+                        <button className="btn-primary" disabled={loading} style={{ marginTop: 12, padding: 14 }} type="submit">
+                            {loading ? '처리 중입니다...' : '로그인'}
                         </button>
+
                         <button
-                            type="button"
-                            onClick={handleSignUp}
                             disabled={loading}
-                            style={{ padding: '12px', border: '1px solid var(--primary)', color: 'var(--primary)', fontWeight: 600, borderRadius: '8px' }}
+                            onClick={() => void handleSignUp()}
+                            style={secondaryButtonStyle}
+                            type="button"
                         >
                             이메일로 회원가입
                         </button>
 
                         <div style={{ textAlign: 'right' }}>
-                            <Link href="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--muted)', textDecoration: 'underline' }}>
+                            <Link href="/forgot-password" style={{ color: 'var(--muted)', fontSize: '0.85rem', textDecoration: 'underline' }}>
                                 비밀번호를 잊으셨나요?
                             </Link>
                         </div>
                     </form>
 
-                    <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.9rem', color: 'var(--muted)' }}>
-                        또는 소셜 계정으로 로그인
-                    </div>
+                    <div style={oauthLabelStyle}>또는 카카오 계정으로 로그인</div>
 
-                    <button
-                        type="button"
-                        onClick={async () => {
-                            setLoading(true);
-                            const { error } = await supabase.auth.signInWithOAuth({
-                                provider: 'kakao',
-                                options: {
-                                    redirectTo: `${window.location.origin}/`,
-                                    scopes: 'profile_nickname',
-                                },
-                            });
-                            if (error) {
-                                setMsg({ type: 'error', text: error.message });
-                                setLoading(false);
-                            }
-                        }}
-                        disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '14px',
-                            marginTop: '16px',
-                            backgroundColor: '#FEE500',
-                            color: '#000000 85%',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            cursor: loading ? 'not-allowed' : 'pointer'
-                        }}
-                    >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#000000">
-                            <path d="M12 3c-5.52 0-10 3.58-10 8 0 2.85 1.83 5.34 4.57 6.74-.29 1.09-1.07 4.12-1.11 4.3-.06.27.14.3.29.2.14-.08 3.51-2.43 4.88-3.38.45.06.91.09 1.38.09 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
-                        </svg>
-                        카카오 로그인
+                    <button disabled={loading} onClick={() => void handleKakaoLogin()} style={kakaoButtonStyle} type="button">
+                        카카오로 로그인
                     </button>
-                </div>
+                </section>
             </div>
         </div>
     );
@@ -160,8 +152,68 @@ function LoginContent() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div style={{ paddingTop: '150px', textAlign: 'center' }}>로딩 중...</div>}>
+        <Suspense fallback={<div style={{ paddingTop: '150px', textAlign: 'center' }}>로딩 중입니다...</div>}>
             <LoginContent />
         </Suspense>
     );
 }
+
+const pageStyle: CSSProperties = {
+    alignItems: 'center',
+    display: 'flex',
+    justifyContent: 'center',
+    minHeight: '80vh',
+    paddingTop: '120px',
+};
+
+const cardStyle: CSSProperties = {
+    background: 'white',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    boxShadow: 'var(--shadow-lg)',
+    padding: 48,
+};
+
+const messageBoxStyle: CSSProperties = {
+    borderRadius: 8,
+    fontSize: '0.9rem',
+    marginBottom: 20,
+    padding: 12,
+};
+
+const inputStyle: CSSProperties = {
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: 12,
+};
+
+const secondaryButtonStyle: CSSProperties = {
+    border: '1px solid var(--primary)',
+    borderRadius: 8,
+    color: 'var(--primary)',
+    fontWeight: 600,
+    padding: 12,
+};
+
+const oauthLabelStyle: CSSProperties = {
+    color: 'var(--muted)',
+    fontSize: '0.9rem',
+    marginTop: 24,
+    textAlign: 'center',
+};
+
+const kakaoButtonStyle: CSSProperties = {
+    alignItems: 'center',
+    backgroundColor: '#FEE500',
+    border: 'none',
+    borderRadius: 8,
+    color: '#111111',
+    cursor: 'pointer',
+    display: 'flex',
+    fontWeight: 700,
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 16,
+    padding: 14,
+    width: '100%',
+};

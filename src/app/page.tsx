@@ -1,202 +1,262 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
+
+const serviceCards = [
+    {
+        description: '오늘 수확한 농산물을 가능한 빠르게 출고합니다.',
+        icon: '산지',
+        title: '100% 산지 직송',
+    },
+    {
+        description: '농가 가격, 물류비, 수수료 구조를 이해하기 쉽게 보여줍니다.',
+        icon: '투명',
+        title: '가격 구조 공개',
+    },
+    {
+        description: '판매자가 사진과 음성만으로 상품 등록을 마칠 수 있게 돕습니다.',
+        icon: '간편',
+        title: '초간단 등록',
+    },
+    {
+        description: 'AI는 설명 작성과 홍보 자동화에만 집중하고 가격은 안정적으로 운영합니다.',
+        icon: '신뢰',
+        title: '신뢰 우선 운영',
+    },
+];
+
+const featuredProducts = [
+    {
+        farm: '고랭지 햇살농장',
+        image: '/corn.png',
+        name: '신선한 초당옥수수 10개입',
+        origin: '강원도 고랭지',
+        price: 15000,
+    },
+    {
+        farm: '하늘배추농장',
+        image: '/cabbage.png',
+        name: '고랭지 절임배추 1망',
+        origin: '강원도 고랭지',
+        price: 12500,
+    },
+    {
+        farm: '청선 배추농장',
+        image: '/napa_cabbage.png',
+        name: '아삭한 고랭지 배추',
+        origin: '강원도 고랭지',
+        price: 18900,
+    },
+];
 
 export default function Home() {
-  return (
-    <div className="fade-in">
-      {/* Hero Section */}
-      <section className="hero" style={{ 
-        backgroundImage: 'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url("/hero.png")', 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center',
-        color: 'white',
-        padding: '180px 0 120px'
-      }}>
-        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <span style={{
-            background: 'var(--primary)',
-            color: 'white',
-            padding: '8px 20px',
-            borderRadius: '20px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            marginBottom: '24px',
-            display: 'inline-block',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-          }}>
-            직거래의 새로운 기준, 슝팜
-          </span>
-          <h1 style={{ color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-            농가에서 바로 오는 <br /> <span style={{ color: '#c0ffcf' }}>진짜 신선함, 슝팜</span>
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1.4rem' }}>
-            AI가 추천하는 합리적인 가격으로 농산물을 만나보세요
-          </p>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
-            <Link href="/products" className="btn-primary" style={{ padding: '16px 40px', fontSize: '1.1rem' }}>
-              슝팜 상품 보러가기
-            </Link>
-          </div>
+    return (
+        <div className="fade-in">
+            <section
+                className="hero"
+                style={{
+                    backgroundImage: 'linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url("/hero.png")',
+                    backgroundPosition: 'center',
+                    backgroundSize: 'cover',
+                    color: 'white',
+                    padding: '180px 0 120px',
+                }}
+            >
+                <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+                    <span
+                        style={{
+                            background: 'var(--primary)',
+                            borderRadius: '20px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                            color: 'white',
+                            display: 'inline-block',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                            marginBottom: '24px',
+                            padding: '8px 20px',
+                        }}
+                    >
+                        농가를 위한 쉬운 판매 도구
+                    </span>
+                    <h1 style={{ color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+                        농가에서 바로 보내는
+                        <br />
+                        <span style={{ color: '#c0ffcf' }}>신선한 직거래 플랫폼</span>
+                    </h1>
+                    <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '1.35rem' }}>
+                        가격은 안정적으로 운영하고, AI는 설명 작성과 판매 자동화에 집중합니다.
+                    </p>
+                    <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
+                        <Link className="btn-primary" href="/products" style={{ fontSize: '1.1rem', padding: '16px 40px' }}>
+                            상품 보러 가기
+                        </Link>
+                        <Link
+                            className="btn-outline"
+                            href="/farmer/register"
+                            style={{
+                                background: 'rgba(255,255,255,0.96)',
+                                border: '2px solid rgba(26, 77, 46, 0.75)',
+                                boxShadow: '0 10px 24px rgba(0,0,0,0.16)',
+                                color: 'var(--primary)',
+                                fontSize: '1.1rem',
+                                fontWeight: 800,
+                                padding: '16px 40px',
+                            }}
+                        >
+                            농가 등록하기
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <section id="about" style={{ background: 'white', padding: '100px 0' }}>
+                <div className="container">
+                    <div
+                        style={{
+                            alignItems: 'center',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '60px',
+                        }}
+                    >
+                        <div style={{ flex: '1', minWidth: '300px' }}>
+                            <h2 style={{ fontSize: '2.5rem', lineHeight: '1.3', marginBottom: '24px' }}>
+                                생산자와 소비자를
+                                <br />
+                                <span style={{ color: 'var(--primary)' }}>가장 짧게 잇는 플랫폼</span>
+                            </h2>
+                            <div style={{ background: 'var(--accent)', borderLeft: '4px solid var(--primary)', borderRadius: 'var(--radius)', padding: '32px' }}>
+                                <p style={{ color: 'var(--foreground)', fontSize: '1.1rem', lineHeight: '1.8', margin: 0 }}>
+                                    숨팜은 고랭지 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼입니다.
+                                    <br />
+                                    가격을 흔드는 실험보다, 설명을 쉽게 만들고 판매를 덜 어렵게 만드는 데 집중합니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', flex: '1', gap: '20px', gridTemplateColumns: '1fr 1fr', minWidth: '300px' }}>
+                            {serviceCards.map((card) => (
+                                <div key={card.title} style={{ background: card.title === '100% 산지 직송' || card.title === '신뢰 우선 운영' ? '#f0f7f2' : '#f5f5f5', borderRadius: 'var(--radius)', padding: '30px', textAlign: 'center' }}>
+                                    <div style={{ color: 'var(--primary)', fontSize: '1.1rem', fontWeight: 800, marginBottom: '10px' }}>{card.icon}</div>
+                                    <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>{card.title}</h3>
+                                    <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{card.description}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section style={{ background: 'var(--accent)', padding: '100px 0' }}>
+                <div className="container">
+                    <div style={{ marginBottom: '60px', textAlign: 'center' }}>
+                        <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>오늘의 추천 산지 상품</h2>
+                        <p style={{ color: 'var(--muted)', fontSize: '1.1rem' }}>
+                            고랭지 농가가 직접 올린 신선한 상품을 둘러보세요.
+                        </p>
+                    </div>
+
+                    <div
+                        style={{
+                            display: 'grid',
+                            gap: '32px',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                        }}
+                    >
+                        {featuredProducts.map((product) => (
+                            <ProductCard
+                                key={product.name}
+                                farm={product.farm}
+                                image={product.image}
+                                name={product.name}
+                                origin={product.origin}
+                                price={product.price}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            <section style={{ background: 'var(--primary)', color: 'white', padding: '120px 0', textAlign: 'center' }}>
+                <div className="container">
+                    <h2 style={{ fontSize: '3rem', marginBottom: '24px' }}>신선한 농산물을 더 쉽게 만나보세요</h2>
+                    <p style={{ fontSize: '1.25rem', marginBottom: '48px', opacity: 0.9 }}>
+                        가격의 흔들림보다 상품의 품질과 판매 경험을 먼저 바로잡았습니다.
+                    </p>
+                    <Link
+                        className="btn-hover-scale"
+                        href="/products"
+                        style={{
+                            background: 'white',
+                            borderRadius: '40px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                            color: 'var(--primary)',
+                            display: 'inline-block',
+                            fontSize: '1.25rem',
+                            fontWeight: 700,
+                            padding: '20px 60px',
+                            transition: 'all 0.3s ease',
+                        }}
+                    >
+                        상품 바로 보러가기
+                    </Link>
+                </div>
+            </section>
+
+            <style jsx>{`
+                .btn-hover-scale:hover {
+                    transform: scale(1.05);
+                    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+                }
+            `}</style>
         </div>
-      </section>
-
-      {/* Service Description Section */}
-      <section id="about" style={{ padding: '100px 0', background: 'white' }}>
-        <div className="container">
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '60px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ flex: '1', minWidth: '300px' }}>
-              <h2 style={{ fontSize: '2.5rem', marginBottom: '24px', lineHeight: '1.3' }}>
-                생산자와 소비자를 <br />
-                <span style={{ color: 'var(--primary)' }}>가장 빠르게 잇는 슝팜</span>
-              </h2>
-              <div style={{ background: 'var(--accent)', padding: '32px', borderRadius: 'var(--radius)', borderLeft: '4px solid var(--primary)' }}>
-                <p style={{ fontSize: '1.15rem', color: 'var(--foreground)', lineHeight: '1.8', margin: 0 }}>
-                  “슝팜은 고랭지 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼입니다. <br />
-                  중간 유통 없이 신선도와 가격 투명성을 제공합니다.”
-                </p>
-              </div>
-            </div>
-            <div style={{ flex: '1', minWidth: '300px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <div style={{ background: '#f0f7f2', padding: '30px', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🥬</div>
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>100% 산지직송</h3>
-                <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>오늘 수확, 내일 도착</p>
-              </div>
-              <div style={{ background: '#f5f5f5', padding: '30px', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>💎</div>
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>가격 투명성</h3>
-                <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>유통 거품을 걷어낸 가격</p>
-              </div>
-              <div style={{ background: '#f5f5f5', padding: '30px', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🤝</div>
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>신뢰 기반</h3>
-                <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>슝팜 인증 고랭지 농가</p>
-              </div>
-              <div style={{ background: '#f0f7f2', padding: '30px', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🤖</div>
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>AI 추천가</h3>
-                <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>합리적인 데이터 매칭</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Product Section */}
-      <section style={{ padding: '100px 0', background: 'var(--accent)' }}>
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>오늘의 슝팜 추천 농산물</h2>
-            <p style={{ color: 'var(--muted)', fontSize: '1.1rem' }}>강원도 고랭지에서 갓 수확한 신선함을 경험해보세요.</p>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '32px'
-          }}>
-            <ProductCard
-              name="정선 아우라지 찰옥수수 (10개입)"
-              price={15000}
-              origin="강원도 고랭지"
-              farm="여량면 대박농원"
-              img="/corn.png"
-            />
-            <ProductCard
-              name="아삭한 고랭지 양배추 (1망/3수)"
-              price={12500}
-              origin="강원도 고랭지"
-              farm="임계면 하늘농장"
-              img="/cabbage.png"
-            />
-            <ProductCard
-              name="정암산 고슬고슬 고랭지 배추"
-              price={18900}
-              origin="강원도 고랭지"
-              farm="정선 정선농가"
-              img="/napa_cabbage.png"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section style={{ padding: '120px 0', textAlign: 'center', background: 'var(--primary)', color: 'white' }}>
-        <div className="container">
-          <h2 style={{ fontSize: '3rem', marginBottom: '24px' }}>가장 신선한 농산물을 만나는 법</h2>
-          <p style={{ fontSize: '1.25rem', marginBottom: '48px', opacity: 0.9 }}>지금 바로 슝팜에서 건강한 식탁을 준비하세요.</p>
-          <Link href="/products" style={{ 
-            background: 'white', 
-            color: 'var(--primary)', 
-            padding: '20px 60px', 
-            borderRadius: '40px', 
-            fontSize: '1.25rem', 
-            fontWeight: 700,
-            display: 'inline-block',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-            transition: 'all 0.3s ease'
-          }} className="btn-hover-scale">
-            슝팜에서 바로 구매하기
-          </Link>
-        </div>
-      </section>
-
-      <style jsx>{`
-        .btn-hover-scale:hover {
-          transform: scale(1.05);
-          box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-        }
-      `}</style>
-    </div>
-  );
+    );
 }
 
-function ProductCard({ name, price, farm, origin, img }: { name: string, price: number, farm: string, origin: string, img: string }) {
-  return (
-    <div style={{
-      background: 'white',
-      borderRadius: '20px',
-      overflow: 'hidden',
-      boxShadow: '0 10px 20px rgba(0,0,0,0.05)',
-      border: '1px solid var(--border)',
-      transition: 'all 0.3s ease'
-    }} className="product-card-hover">
-      <div style={{ position: 'relative', width: '100%', height: '240px' }}>
-        <Image src={img} alt={name} fill style={{ objectFit: 'cover' }} />
-        <div style={{ 
-          position: 'absolute', 
-          top: '16px', 
-          left: '16px', 
-          background: 'rgba(26, 77, 46, 0.9)', 
-          color: 'white', 
-          padding: '6px 12px', 
-          borderRadius: '6px', 
-          fontSize: '0.75rem', 
-          fontWeight: 700,
-          backdropFilter: 'blur(4px)'
-        }}>
-          슝팜 인증 농가
+function ProductCard({ name, price, farm, origin, image }: { name: string; price: number; farm: string; origin: string; image: string }) {
+    return (
+        <div
+            className="product-card-hover"
+            style={{
+                background: 'white',
+                border: '1px solid var(--border)',
+                borderRadius: '20px',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.05)',
+                overflow: 'hidden',
+                transition: 'all 0.3s ease',
+            }}
+        >
+            <div style={{ height: '240px', position: 'relative', width: '100%' }}>
+                <Image alt={name} fill src={image} style={{ objectFit: 'cover' }} />
+                <div
+                    style={{
+                        backdropFilter: 'blur(4px)',
+                        background: 'rgba(26, 77, 46, 0.9)',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        left: '16px',
+                        padding: '6px 12px',
+                        position: 'absolute',
+                        top: '16px',
+                    }}
+                >
+                    직거래 인증 농가
+                </div>
+            </div>
+            <div style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <span style={{ background: '#f0f0f0', borderRadius: '4px', color: '#666', fontSize: '0.75rem', padding: '4px 8px' }}>{origin}</span>
+                    <span style={{ background: '#eefef1', borderRadius: '4px', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, padding: '4px 8px' }}>{farm}</span>
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '20px' }}>{name}</h3>
+                <div style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--primary)', fontSize: '1.5rem', fontWeight: 700 }}>{price.toLocaleString()}원</span>
+                    <Link href="/products" style={{ borderBottom: '1px solid #ccc', color: 'var(--muted)', fontSize: '0.9rem' }}>상세보기</Link>
+                </div>
+            </div>
         </div>
-      </div>
-      <div style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <span style={{ fontSize: '0.75rem', background: '#f0f0f0', padding: '4px 8px', borderRadius: '4px', color: '#666' }}>{origin}</span>
-          <span style={{ fontSize: '0.75rem', background: '#eefef1', padding: '4px 8px', borderRadius: '4px', color: 'var(--primary)', fontWeight: 600 }}>{farm}</span>
-        </div>
-        <h3 style={{ fontSize: '1.25rem', marginBottom: '20px', fontWeight: 600 }}>{name}</h3>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' }}>{price.toLocaleString()}원</span>
-          <Link href="/products" style={{ color: 'var(--muted)', fontSize: '0.9rem', borderBottom: '1px solid #ccc' }}>상세보기</Link>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
-

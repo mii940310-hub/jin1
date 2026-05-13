@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
             allow: '/',
             disallow: ['/admin/', '/api/'], // 관리자 및 API 폴더는 검색엔진 노출 방지
         },
-        sitemap: 'https://www.shoongfarm.com/sitemap.xml',
+        sitemap: 'https://www.shoongfarm.co.kr/sitemap.xml',
     };
 }

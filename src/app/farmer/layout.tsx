@@ -1,93 +1,125 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, type ReactNode, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { Suspense } from 'react';
 
-function FarmerLayoutContent({ children }: { children: React.ReactNode }) {
-    const [loading, setLoading] = useState(true);
+function FarmerLayoutContent({ children }: { children: ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const isRegisterRoute = pathname === '/farmer/register';
+    const [loading, setLoading] = useState(!isRegisterRoute);
 
     useEffect(() => {
-        // 회원가입 과정은 농가 권한 체크에서 예외
-        if (pathname === '/farmer/register') {
-            setLoading(false);
+        if (isRegisterRoute) {
             return;
         }
 
-        // OAuth 에러 파라미터 감지 (카카오 로그인 실패 시)
-        const error = searchParams.get('error');
-        const errorDescription = searchParams.get('error_description');
-        if (error) {
-            const msg = errorDescription
-                ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
-                : error;
-            alert(`카카오 로그인 실패: ${msg}\n\n카카오 개발자 센터의 보안 설정을 확인해주세요.`);
+        let isActive = true;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        let unsubscribe: (() => void) | null = null;
+
+        const handleUnauthorized = () => {
+            if (!isActive) {
+                return;
+            }
             router.replace('/farmer-page');
-            return;
-        }
+        };
 
         const checkFarmer = async (userId: string) => {
-            const { data: farm } = await supabase.from('farms').select('id').eq('owner_id', userId).single();
+            const { data: farm } = await supabase
+                .from('farms')
+                .select('id')
+                .eq('owner_id', userId)
+                .maybeSingle();
+
+            if (!isActive) {
+                return;
+            }
+
             if (!farm) {
-                alert('등록된 농가 정보가 없습니다. 농가 가입을 먼저 진행해주세요.');
+                alert('등록된 농가 정보가 없습니다. 먼저 농가 등록을 진행해 주세요.');
                 router.replace('/farmer/register');
                 return;
             }
+
             setLoading(false);
         };
 
-        // 먼저 현재 세션 확인
-        supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-            if (session?.user) {
-                checkFarmer(session.user.id);
-            } else {
-                // 세션 없으면 auth state 변화를 기다림 (OAuth 리다이렉트 직후 처리)
-                let settled = false;
-                const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-                    if (settled) return;
-                    if (session?.user) {
-                        settled = true;
-                        checkFarmer(session.user.id);
-                    } else if (event === 'INITIAL_SESSION') {
-                        // INITIAL_SESSION without a user → wait for timeout
-                    } else if (event === 'SIGNED_OUT') {
-                        settled = true;
-                        router.replace('/farmer-page');
-                    }
-                });
+        const initialize = async () => {
+            const error = searchParams.get('error');
+            const errorDescription = searchParams.get('error_description');
 
-                // 3초 후에도 세션이 없으면 로그인 페이지로 이동
-                const timeout = setTimeout(() => {
-                    if (settled) return;
-                    settled = true;
-                    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
-                        if (!session) {
-                            router.replace('/farmer-page');
-                        }
-                    });
-                }, 3000);
+            if (error) {
+                const message = errorDescription
+                    ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
+                    : error;
 
-                return () => {
-                    subscription.unsubscribe();
-                    clearTimeout(timeout);
-                };
+                alert(`카카오 로그인에 실패했습니다: ${message}\n\n카카오 개발자센터 보안 설정을 확인해 주세요.`);
+                router.replace('/farmer-page');
+                return;
             }
-        });
-    }, [pathname, router, searchParams]);
 
-    if (loading) return <div style={{ paddingTop: '150px', textAlign: 'center' }}>농가 권한을 확인하는 중입니다...</div>;
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+
+            if (session?.user) {
+                await checkFarmer(session.user.id);
+                return;
+            }
+
+            const { data } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, nextSession: Session | null) => {
+                if (!isActive) {
+                    return;
+                }
+
+                if (nextSession?.user) {
+                    void checkFarmer(nextSession.user.id);
+                    return;
+                }
+
+                if (event === 'SIGNED_OUT') {
+                    handleUnauthorized();
+                }
+            });
+
+            unsubscribe = () => data.subscription.unsubscribe();
+
+            timeoutId = setTimeout(async () => {
+                const {
+                    data: { session: latestSession },
+                } = await supabase.auth.getSession();
+
+                if (!latestSession) {
+                    handleUnauthorized();
+                }
+            }, 3000);
+        };
+
+        void initialize();
+
+        return () => {
+            isActive = false;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            unsubscribe?.();
+        };
+    }, [isRegisterRoute, router, searchParams]);
+
+    if (loading) {
+        return <div style={{ paddingTop: '150px', textAlign: 'center' }}>농가 권한을 확인하고 있습니다...</div>;
+    }
 
     return <>{children}</>;
 }
 
-export default function FarmerLayout({ children }: { children: React.ReactNode }) {
+export default function FarmerLayout({ children }: { children: ReactNode }) {
     return (
-        <Suspense fallback={<div style={{ paddingTop: '150px', textAlign: 'center' }}>로딩 중...</div>}>
+        <Suspense fallback={<div style={{ paddingTop: '150px', textAlign: 'center' }}>로딩 중입니다...</div>}>
             <FarmerLayoutContent>{children}</FarmerLayoutContent>
         </Suspense>
     );

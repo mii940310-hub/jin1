@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function UpdatePasswordPage() {
     const [password, setPassword] = useState('');
@@ -23,7 +23,7 @@ export default function UpdatePasswordPage() {
         setMsg({ type: '', text: '' });
 
         const { error } = await supabase.auth.updateUser({
-            password: password
+            password,
         });
 
         if (error) {
@@ -32,7 +32,7 @@ export default function UpdatePasswordPage() {
             return;
         }
 
-        setMsg({ type: 'success', text: "비밀번호가 변경됐어요. 다시 로그인해 주세요!" });
+        setMsg({ type: 'success', text: '비밀번호가 변경되었어요. 다시 로그인해 주세요.' });
         setTimeout(() => {
             router.push('/login');
         }, 2000);
@@ -44,7 +44,7 @@ export default function UpdatePasswordPage() {
                 <div style={{ background: 'white', padding: '48px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
                     <h1 style={{ fontSize: '2rem', textAlign: 'center', marginBottom: '8px' }}>비밀번호 변경</h1>
                     <p style={{ textAlign: 'center', color: 'var(--muted)', marginBottom: '32px' }}>
-                        새로운 비밀번호를 입력해주세요.
+                        새로운 비밀번호를 입력해 주세요.
                     </p>
 
                     {msg.text && (
@@ -54,7 +54,7 @@ export default function UpdatePasswordPage() {
                             marginBottom: '20px',
                             fontSize: '0.9rem',
                             background: msg.type === 'error' ? '#fee2e2' : '#dcfce7',
-                            color: msg.type === 'error' ? '#b91c1c' : '#166534'
+                            color: msg.type === 'error' ? '#b91c1c' : '#166534',
                         }}>
                             {msg.text}
                         </div>

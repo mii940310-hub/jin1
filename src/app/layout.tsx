@@ -1,100 +1,112 @@
-import type { Metadata } from "next";
-import Image from "next/image";
-import "./globals.css";
-import { getMissingEnvs, validateEnvs } from "@/lib/env-check";
-import ChatBot from "@/components/ChatBot";
-import Navigation from "@/components/Navigation";
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import './globals.css';
+import ChatBot from '@/components/ChatBot';
+import Navigation from '@/components/Navigation';
+import { getMissingEnvs, validateEnvs } from '@/lib/env-check';
 
-// Run validation in dev mode console
 if (process.env.NODE_ENV === 'development') {
-  validateEnvs();
+    validateEnvs();
 }
 
 export const metadata: Metadata = {
-  title: "슝팜(Shoong Farm) | 산지직송 투명가 보장 농산물 직거래 플랫폼",
-  description: "유통 마진 0원! 강원도 고랭지 신선 농산물을 농가에서 소비자에게 직접 연결하는 직거래 플랫폼 슝팜. 투명한 가격과 갓 수확한 신선도를 직접 경험해보세요.",
-  keywords: ["슝팜", "shoong farm", "산지직송", "농가직거래", "강원도", "정선 농산물", "고랭지 배추", "당일수확", "농산물 플랫폼"],
-  openGraph: {
-    title: "슝팜(Shoong Farm) | 프리미엄 산지직송 직거래 플랫폼",
-    description: "유통 과정을 없애 진짜 신선한 당일 수확 농산물을 투명하고 정직한 가격에! 슝팜에서 만나보세요.",
-    url: "https://www.shoongfarm.com",
-    siteName: "슝팜(Shoong Farm)",
-    images: [{
-      url: "https://www.shoongfarm.com/hero.jpg", // You can update this to an actual logo later
-      width: 1200,
-      height: 630,
-      alt: "슝팜 산지직송 농산물",
-    }],
-    locale: "ko_KR",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "슝팜(Shoong Farm)",
-    description: "산지직송 AI 최저가 보장 농산물 직거래 플랫폼",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  }
+    title: '숨팜 | 농가 직송 농산물 플랫폼',
+    description: '농가는 쉽게 상품을 등록하고, 소비자는 신선한 농산물을 바로 만날 수 있는 직거래 플랫폼입니다.',
+    keywords: ['숨팜', '농가직송', '농산물', '직거래', '신선식품', '농가 판매'],
+    openGraph: {
+        title: '숨팜 | 농가 직송 농산물 플랫폼',
+        description: '농가가 쉽게 판매를 시작하고 소비자가 더 믿고 고를 수 있는 직거래 서비스입니다.',
+        url: 'https://www.shoongfarm.co.kr',
+        siteName: '숨팜',
+        images: [
+            {
+                url: 'https://www.shoongfarm.co.kr/logo.png',
+                width: 1200,
+                height: 630,
+                alt: '숨팜 로고',
+            },
+        ],
+        locale: 'ko_KR',
+        type: 'website',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: '숨팜 | 농가 직송 농산물 플랫폼',
+        description: 'AI로 상품 설명과 판매 자동화를 돕는 농산물 직거래 플랫폼입니다.',
+    },
+    robots: {
+        index: true,
+        follow: true,
+    },
 };
 
 export default function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-  const missingEnvs = getMissingEnvs();
+    const missingEnvs = getMissingEnvs();
 
-  return (
-    <html lang="ko">
-      <body>
-        <EnvWarningBanner missingEnvs={missingEnvs} />
-        <nav className="navbar" style={{ top: missingEnvs.length > 0 ? '40px' : '0' }}>
-          <div className="logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <a href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', height: '100%' }}>
-              <img src="/logo.png" alt="슝팜 로고" style={{ height: '64px', objectFit: 'contain' }} />
-            </a>
-          </div>
-          {/* 동적 역할 기반 네비게이션 적용 (총괄/농가/일반 분리) */}
-          <Navigation />
-        </nav>
-        <main>{children}</main>
-        <footer style={{ padding: '60px 0', textAlign: 'center', background: 'var(--accent)', marginTop: '80px', borderTop: '1px solid var(--border)' }}>
-          <div className="container">
-            <h2 style={{ fontSize: '1.2rem', color: 'var(--primary)', marginBottom: '12px' }}>슝팜 (Swoong Farm)</h2>
-            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              © 2026 슝팜 (Swoong Farm). All rights reserved. <br />
-              농가 직거래 플랫폼 • 강원도 고랭지 채소 유통 혁신
-            </p>
-          </div>
-        </footer>
-        <ChatBot />
-      </body>
-    </html>
-  );
+    return (
+        <html lang="ko">
+            <body>
+                <EnvWarningBanner missingEnvs={missingEnvs} />
+                <nav className="navbar" style={{ top: missingEnvs.length > 0 ? '40px' : '0' }}>
+                    <div className="logo" style={{ alignItems: 'center', display: 'flex', gap: '8px' }}>
+                        <Link href="/" style={{ alignItems: 'center', display: 'flex', height: '100%', textDecoration: 'none' }}>
+                            <Image
+                                alt="숨팜 로고"
+                                height={64}
+                                src="/logo.png"
+                                style={{ height: '64px', objectFit: 'contain', width: 'auto' }}
+                                width={160}
+                            />
+                        </Link>
+                    </div>
+                    <Navigation />
+                </nav>
+                <main>{children}</main>
+                <footer style={{ background: 'var(--accent)', borderTop: '1px solid var(--border)', marginTop: '80px', padding: '60px 0', textAlign: 'center' }}>
+                    <div className="container">
+                        <h2 style={{ color: 'var(--primary)', fontSize: '1.2rem', marginBottom: '12px' }}>숨팜</h2>
+                        <p style={{ color: 'var(--muted)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                            © 2026 숨팜. All rights reserved.
+                            <br />
+                            복잡한 판매 준비를 줄여주는 농산물 직거래 플랫폼
+                        </p>
+                    </div>
+                </footer>
+                <ChatBot />
+            </body>
+        </html>
+    );
 }
 
 function EnvWarningBanner({ missingEnvs }: { missingEnvs: string[] }) {
-  if (missingEnvs.length === 0) return null;
+    if (missingEnvs.length === 0) {
+        return null;
+    }
 
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      width: '100%',
-      height: '40px',
-      background: '#e63946',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '0.85rem',
-      fontWeight: 600,
-      zIndex: 1001,
-      padding: '0 20px'
-    }}>
-      ⚠️ 필수 환경변수 누락: {missingEnvs.join(', ')} .env.local 설정을 확인하세요.
-    </div>
-  );
+    return (
+        <div
+            style={{
+                alignItems: 'center',
+                background: '#e63946',
+                color: 'white',
+                display: 'flex',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                height: '40px',
+                justifyContent: 'center',
+                padding: '0 20px',
+                position: 'fixed',
+                top: 0,
+                width: '100%',
+                zIndex: 1001,
+            }}
+        >
+            필수 환경 변수가 비어 있습니다: {missingEnvs.join(', ')}. `.env.local` 설정을 확인해 주세요.
+        </div>
+    );
 }

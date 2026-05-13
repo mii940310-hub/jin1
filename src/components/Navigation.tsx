@@ -1,50 +1,53 @@
 'use client';
 
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+
+type UserRole = 'admin' | 'farmer' | 'guest' | 'user';
 
 export default function Navigation() {
-    const [userRole, setUserRole] = useState<'guest' | 'user' | 'farmer' | 'admin'>('guest');
-    const pathname = usePathname();
+    const [userRole, setUserRole] = useState<UserRole>('guest');
 
     useEffect(() => {
         if (!isSupabaseConfigured) {
-            setUserRole('guest');
             return;
         }
 
         const checkUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+
             if (!user) {
                 setUserRole('guest');
                 return;
             }
 
             const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@highlandfresh.com';
+
             if (user.email === adminEmail) {
                 setUserRole('admin');
                 return;
             }
 
             const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-            if (profile?.role === 'farmer') {
-                setUserRole('farmer');
-            } else {
-                setUserRole('user');
-            }
+            setUserRole(profile?.role === 'farmer' ? 'farmer' : 'user');
         };
-        checkUser();
 
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
-            if (session?.user) {
-                checkUser();
-            } else {
-                setUserRole('guest');
-            }
-        });
+        void checkUser();
+
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+            (_event: AuthChangeEvent, session: Session | null) => {
+                if (!session?.user) {
+                    setUserRole('guest');
+                    return;
+                }
+
+                void checkUser();
+            },
+        );
 
         return () => {
             authListener.subscription.unsubscribe();
@@ -52,52 +55,45 @@ export default function Navigation() {
     }, []);
 
     return (
-        <div className="nav-links" style={{ display: 'flex', gap: '32px', fontWeight: 500, alignItems: 'center' }}>
+        <div className="nav-links" style={{ alignItems: 'center', display: 'flex', fontWeight: 500, gap: '32px' }}>
             <Link href="/">홈</Link>
             <Link href="/products">상품</Link>
             <Link href="/farmer-page">농가</Link>
             <Link href="/about">소개</Link>
 
-            <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 8px' }} />
+            <div style={{ background: 'var(--border)', height: '20px', margin: '0 8px', width: '1px' }} />
 
-            <Link href="/cart">🛒 장바구니</Link>
-            
-            {/* 일반 사용자/권한없는 사용자용 메뉴 */}
-            {userRole !== 'admin' && userRole !== 'farmer' && (
-                <>
-                    <Link href="/my-page/orders">마이페이지</Link>
-                </>
-            )}
+            <Link href="/cart">장바구니</Link>
 
-            {/* 농가 전용 메뉴 */}
-            {userRole === 'farmer' && (
-                <>
-                    <Link href="/farmer">농가 관리 홈</Link>
-                </>
-            )}
+            {userRole !== 'admin' && userRole !== 'farmer' ? <Link href="/my-page/orders">주문내역</Link> : null}
+            {userRole === 'farmer' ? <Link href="/farmer">농가 관리</Link> : null}
+            {userRole === 'admin' ? <Link href="/admin" style={{ color: '#be185d' }}>관리자</Link> : null}
 
-            {/* 관리자 전용 메뉴 */}
-            {userRole === 'admin' && (
-                <Link href="/admin" style={{ color: '#be185d' }}>총괄 대시보드</Link>
-            )}
-
-            {/* 로그인 / 로그아웃 */}
             {userRole === 'guest' ? (
-                <Link href="/login" style={{ 
-                    padding: '8px 20px', 
-                    borderRadius: '20px', 
-                    background: 'var(--primary)', 
-                    color: 'white',
-                    fontSize: '0.9rem'
-                }}>로그인</Link>
+                <Link
+                    href="/login"
+                    style={{
+                        background: 'var(--primary)',
+                        borderRadius: '20px',
+                        color: 'white',
+                        fontSize: '0.9rem',
+                        padding: '8px 20px',
+                    }}
+                >
+                    로그인
+                </Link>
             ) : (
-                <button 
+                <button
                     onClick={async () => {
-                        if (!isSupabaseConfigured) return;
+                        if (!isSupabaseConfigured) {
+                            return;
+                        }
+
                         await supabase.auth.signOut();
                         window.location.href = '/';
-                    }} 
-                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontWeight: 500, fontSize: '1rem' }}
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1rem', fontWeight: 500 }}
+                    type="button"
                 >
                     로그아웃
                 </button>

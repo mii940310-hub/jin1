@@ -1,50 +1,44 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : '상품 설명 생성 중 오류가 발생했습니다.';
+}
+
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        
+        const body = await req.json() as Record<string, unknown>;
         const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
         if (!apiKey) {
-            return NextResponse.json({
-                error: "GOOGLE_GENERATIVE_AI_API_KEY가 설정되지 않았습니다."
-            }, { status: 500 });
+            return NextResponse.json({ error: 'GOOGLE_GENERATIVE_AI_API_KEY가 설정되지 않았습니다.' }, { status: 500 });
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Using gemini-2.5-flash instead of gemini-pro for compatibility
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-        const prompt = `You are a professional marketing copywriter for direct-from-farm products in South Korea.
-        Create a comprehensive product detail page content based on the following input data:
-        Input: ${JSON.stringify(body)}
-        
-        The content should emphasize freshness, farm transparency, and direct delivery. Do not use hyperbolic marketing or compare with other shopping malls.
-        
-        Output strictly as a JSON object with exactly these fields:
-        - ai_generated_title (string, catchy Korean title)
-        - ai_generated_summary (string, one line intro)
-        - ai_generated_features (array of strings, 3-4 key bullet points)
-        - ai_generated_description (string, main body text using markdown)
-        - ai_generated_storage_guide (string, how to store)
-        - ai_generated_shipping_guide (string, shipping notes)
-        - ai_generated_faq (array of objects with 'q' and 'a')
-        - ai_warning_notes (string, any disclaimers like shape/size variance)
-        
-        Return ONLY valid JSON. No markdown backticks outside or inside the JSON block if possible.
-        `;
+        const prompt = `You are a professional Korean marketing copywriter for direct-from-farm products.
+Create a product detail page from this input:
+${JSON.stringify(body)}
+
+Return ONLY valid JSON with these fields:
+- ai_generated_title
+- ai_generated_summary
+- ai_generated_features
+- ai_generated_description
+- ai_generated_storage_guide
+- ai_generated_shipping_guide
+- ai_generated_faq
+- ai_warning_notes`;
 
         const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
-        
-        // Clean JSON backticks if present
-        responseText = responseText.replace(/```json\n?/, '').replace(/```\n?/, '').trim();
-        
-        const jsonResult = JSON.parse(responseText);
+        const responseText = result.response.text().replace(/```json\n?/, '').replace(/```\n?/, '').trim();
+        const parsedResult = JSON.parse(responseText) as unknown;
 
-        return NextResponse.json(jsonResult);
-    } catch (error: any) {
+        return NextResponse.json(parsedResult);
+    } catch (error: unknown) {
+        const message = getErrorMessage(error);
         console.error('[GEMINI_DESC_ERROR]', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

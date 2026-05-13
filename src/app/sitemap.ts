@@ -1,9 +1,14 @@
 import { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabase';
 
+type SitemapProduct = {
+    id: string;
+    updated_at: string | null;
+};
+
 // 동적 사이트맵 생성
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const baseUrl = 'https://www.shoongfarm.com';
+    const baseUrl = 'https://www.shoongfarm.co.kr';
 
     // 기본 정적 경로 목록
     const routes: MetadataRoute.Sitemap = [
@@ -26,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const { data: products } = await supabase.from('products').select('id, updated_at');
         
         if (products) {
-            const productRoutes = products.map((product) => ({
+            const productRoutes = (products as SitemapProduct[]).map((product) => ({
                 url: `${baseUrl}/products/${product.id}`,
                 lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
                 changeFrequency: 'weekly' as const,
