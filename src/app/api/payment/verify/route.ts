@@ -139,6 +139,12 @@ export async function POST(req: NextRequest) {
     if (!paymentResponse.ok) {
       const errorText = await paymentResponse.text();
       console.error("[VERIFY] PortOne payment lookup failed:", paymentResponse.status, errorText);
+      if (paymentResponse.status === 401) {
+        return buildError(
+          "서버 설정 오류: PORTONE_API_SECRET이 올바르지 않습니다. Vercel Production 환경변수를 확인해 주세요.",
+          500,
+        );
+      }
       return buildError(`결제 정보 조회 실패 (${paymentResponse.status}): ${errorText}`);
     }
 
