@@ -127,12 +127,16 @@ export async function POST(req: NextRequest) {
             return buildError('장바구니를 생성할 수 없습니다.', 500);
         }
 
-        const { error: cartItemError } = await adminClient.from('cart_items').insert({
+        const cartItemPayload = {
             cart_id: cart.id,
             metadata: body.metadata || {},
             product_id: body.productId,
             quantity: body.quantity ?? 1,
-        } as never);
+        };
+
+        const { error: cartItemError } = await adminClient
+            .from('cart_items')
+            .upsert(cartItemPayload as never, { onConflict: 'cart_id,product_id' });
 
         if (cartItemError) {
             throw new Error(cartItemError.message);
