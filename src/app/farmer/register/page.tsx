@@ -3,6 +3,7 @@
 import { type ChangeEvent, type CSSProperties, type FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 import { supabase } from '@/lib/supabase';
 
 type MessageState = {
@@ -81,7 +82,7 @@ export default function FarmerRegisterPage() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'kakao',
             options: {
-                redirectTo: `${window.location.origin}/farmer/register`,
+                redirectTo: getAuthRedirectUrl('/farmer/register'),
                 scopes: 'profile_nickname',
             },
         });

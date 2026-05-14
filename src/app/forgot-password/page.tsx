@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordPage() {
@@ -15,7 +16,7 @@ export default function ForgotPasswordPage() {
         setMsg({ type: '', text: '' });
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/auth`,
+            redirectTo: getAuthRedirectUrl('/auth'),
         });
 
         if (error) {

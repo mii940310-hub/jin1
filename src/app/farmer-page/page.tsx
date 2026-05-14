@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 import { supabase } from '@/lib/supabase';
 
 const benefitCards = [
@@ -27,7 +28,7 @@ export default function FarmerPage() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'kakao',
             options: {
-                redirectTo: `${window.location.origin}/farmer`,
+                redirectTo: getAuthRedirectUrl('/farmer'),
             },
         });
 

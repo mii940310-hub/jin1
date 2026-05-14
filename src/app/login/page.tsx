@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Suspense, type CSSProperties, type FormEvent, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 import { supabase } from '@/lib/supabase';
 
 type MessageState = {
@@ -69,7 +70,7 @@ function LoginContent() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'kakao',
             options: {
-                redirectTo: `${window.location.origin}${redirectUrl}`,
+                redirectTo: getAuthRedirectUrl(redirectUrl),
                 scopes: 'profile_nickname',
             },
         });
