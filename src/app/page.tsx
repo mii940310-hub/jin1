@@ -84,9 +84,6 @@ export default function Home() {
                         <br />
                         <span style={{ color: '#c0ffcf' }}>신선한 직거래 플랫폼</span>
                     </h1>
-                    <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: '1.35rem' }}>
-                        가격은 안정적으로 운영하고, AI는 설명 작성과 판매 자동화에 집중합니다.
-                    </p>
                     <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
                         <Link className="btn-primary" href="/products" style={{ fontSize: '1.1rem', padding: '16px 40px' }}>
                             상품 보러 가기
