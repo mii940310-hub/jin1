@@ -5,10 +5,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as PortOne from '@portone/browser-sdk/v2';
 import type { User } from '@supabase/supabase-js';
+import { PORTONE_CHANNEL_KEY, PORTONE_STORE_ID } from '@/lib/portone-config';
 import { supabase } from '@/lib/supabase';
 
-const portoneStoreId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
-const portoneChannelKey = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
+const portoneStoreId = PORTONE_STORE_ID;
+const portoneChannelKey = PORTONE_CHANNEL_KEY;
 
 type CartItemProduct = {
     category?: string | null;
