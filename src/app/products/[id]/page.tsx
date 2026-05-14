@@ -131,29 +131,38 @@ export default function ProductDetailPage() {
                 return;
             }
 
-            let { data: cart } = await supabase.from('carts').select('id').eq('user_id', user.id).maybeSingle();
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
 
-            if (!cart) {
-                const { data: newCart } = await supabase.from('carts').insert({ user_id: user.id }).select('id').single();
-                cart = newCart;
+            if (!session?.access_token) {
+                alert('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+                router.push(`/login?redirect=/products/${product.id}`);
+                return;
             }
 
-            const cartItemPayload = {
-                cart_id: cart?.id,
-                product_id: product.id,
-                quantity: 1,
-                metadata: {
-                    selected_option_index: weightType === 'range' ? selectedOptionIndex : null,
-                    selected_quantity: selectedQuantity,
-                    weight_type: weightType,
-                    weight_unit: product.weight_unit || 'kg',
+            const cartResponse = await fetch('/api/cart/add', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
                 },
-            };
+                body: JSON.stringify({
+                    productId: product.id,
+                    quantity: 1,
+                    metadata: {
+                        selected_option_index: weightType === 'range' ? selectedOptionIndex : null,
+                        selected_quantity: selectedQuantity,
+                        weight_type: weightType,
+                        weight_unit: product.weight_unit || 'kg',
+                    },
+                }),
+            });
 
-            const { error: cartError } = await supabase.from('cart_items').insert(cartItemPayload as never);
+            const cartResult = await cartResponse.json() as { message?: string; success?: boolean };
 
-            if (cartError) {
-                throw cartError;
+            if (!cartResponse.ok || !cartResult.success) {
+                throw new Error(cartResult.message || '장바구니 담기에 실패했습니다.');
             }
 
             if (confirm('장바구니에 담았습니다. 장바구니로 이동할까요?')) {
